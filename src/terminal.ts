@@ -36,6 +36,7 @@ export async function createTerminalNode(
   nodeWidth: number,
   nodeHeight: number,
   cwd?: string,
+  connectedProjectPath?: string,
 ): Promise<void> {
   const overlayContainer = getOverlayContainer();
 
@@ -70,6 +71,15 @@ export async function createTerminalNode(
   gripIcon.style.cssText = 'display:flex;align-items:center;';
   gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
+
+  // Title label (shows project path if connected)
+  if (connectedProjectPath) {
+    const titleLabel = document.createElement('div');
+    const shortPath = connectedProjectPath.replace(/^\/Users\/[^/]+/, '~');
+    titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    titleLabel.textContent = shortPath;
+    titleBar.appendChild(titleLabel);
+  }
 
   // Spacer
   const spacer = document.createElement('div');
@@ -216,23 +226,26 @@ export async function createTerminalNode(
 
 export function setActiveNode(id: string | null) {
   setActiveNodeId(id);
-  const allNodes = getAllNodes();
-  for (const entry of allNodes) {
-    const data = terminalData.get(entry.id);
-    if (entry.id === id) {
-      if (data) data.terminal.focus();
+  for (const [nodeId, data] of terminalData) {
+    const entry = getNode(nodeId);
+    if (!entry) continue;
+    if (nodeId === id) {
+      data.terminal.focus();
       entry.overlay.style.borderColor = BORDER_FOCUSED;
-      // Bring overlay to top
-      entry.overlay.style.zIndex = `${allNodes.length + 1}`;
+      entry.overlay.style.zIndex = `${getAllNodes().length + 1}`;
     } else {
-      if (data) data.terminal.blur();
+      data.terminal.blur();
       entry.overlay.style.borderColor = BORDER_DEFAULT;
     }
   }
 }
 
 export function blurAllTerminals() {
-  setActiveNode(null);
+  for (const [id, data] of terminalData) {
+    data.terminal.blur();
+    const entry = getNode(id);
+    if (entry) entry.overlay.style.borderColor = BORDER_DEFAULT;
+  }
 }
 
 export function syncOverlays(world: Container) {

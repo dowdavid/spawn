@@ -7,10 +7,10 @@ import {
   unregisterNode,
   getNode,
   setActiveNodeId,
-  getActiveNodeId,
   getOverlayContainer,
   getAllNodes,
 } from './state';
+import { blurAllTerminals } from './terminal';
 
 interface FileEntry {
   name: string;
@@ -286,12 +286,13 @@ export function getProjectPath(id: string): string | undefined {
 
 export function setActiveProjectNode(id: string | null): void {
   setActiveNodeId(id);
-  const allNodes = getAllNodes();
-  for (const entry of allNodes) {
-    if (entry.type !== 'project') continue;
-    if (entry.id === id) {
+  blurAllTerminals();
+  for (const [pid, _data] of projectData) {
+    const entry = getNode(pid);
+    if (!entry) continue;
+    if (pid === id) {
       entry.overlay.style.borderColor = BORDER_FOCUSED;
-      entry.overlay.style.zIndex = `${allNodes.length + 1}`;
+      entry.overlay.style.zIndex = `${getAllNodes().length + 1}`;
     } else {
       entry.overlay.style.borderColor = BORDER_DEFAULT;
     }
