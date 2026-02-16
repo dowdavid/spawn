@@ -35,6 +35,7 @@ export async function createTerminalNode(
   gfx: Graphics,
   nodeWidth: number,
   nodeHeight: number,
+  cwd?: string,
 ): Promise<void> {
   const overlayContainer = getOverlayContainer();
 
@@ -137,7 +138,7 @@ export async function createTerminalNode(
   const rows = terminal.rows;
 
   // Spawn PTY backend
-  await invoke('spawn_pty', { id, cols, rows });
+  await invoke('spawn_pty', { id, cols, rows, cwd: cwd ?? null });
 
   // Listen for PTY output
   const unlisten = await listen<string>(`pty-output-${id}`, (event) => {

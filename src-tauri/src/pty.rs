@@ -27,6 +27,7 @@ pub fn spawn_pty(
     id: String,
     cols: u16,
     rows: u16,
+    cwd: Option<String>,
     app: AppHandle,
     state: State<'_, PtyManager>,
 ) -> Result<(), String> {
@@ -44,6 +45,10 @@ pub fn spawn_pty(
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
     let mut cmd = CommandBuilder::new(&shell);
     cmd.env("TERM", "xterm-256color");
+
+    if let Some(dir) = cwd {
+        cmd.cwd(dir);
+    }
 
     let child = pair.slave.spawn_command(cmd).map_err(|e| e.to_string())?;
     let writer = pair.master.take_writer().map_err(|e| e.to_string())?;
