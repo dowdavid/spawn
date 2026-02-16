@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { Container, Graphics } from 'pixi.js';
+import { NODE_WIDTH, NODE_HEIGHT, TITLE_BAR_HEIGHT } from './node';
 
 export interface TerminalNode {
   id: string;
@@ -11,13 +12,17 @@ export interface TerminalNode {
   overlay: HTMLDivElement;
   unlisten: UnlistenFn;
   gfx: Graphics;
+  nodeWidth: number;
+  nodeHeight: number;
 }
 
-const BORDER_INSET = 4;
+const BORDER_WIDTH = 2;
+const CORNER_RADIUS = 8;
 const MIN_VISIBLE_SCALE = 0.3;
-const FILL_COLOR = '#16213e';
 const BORDER_DEFAULT = '#0f3460';
 const BORDER_FOCUSED = '#e94560';
+const FILL_COLOR = '#16213e';
+const TITLE_BAR_COLOR = '#0f2040';
 
 const nodes: TerminalNode[] = [];
 let overlayContainer: HTMLDivElement;
@@ -37,10 +42,39 @@ export async function createTerminalNode(
   nodeWidth: number,
   nodeHeight: number,
 ): Promise<TerminalNode> {
+  // Outer wrapper — covers the full node area including border
   const overlay = document.createElement('div');
-  overlay.style.cssText =
-    'position:absolute;pointer-events:auto;overflow:hidden;';
+  overlay.className = 'terminal-overlay';
+  overlay.style.cssText = `
+    position:absolute;
+    pointer-events:auto;
+    overflow:hidden;
+    background:${FILL_COLOR};
+    border:${BORDER_WIDTH}px solid ${BORDER_DEFAULT};
+    border-radius:${CORNER_RADIUS}px;
+    box-sizing:border-box;
+  `;
   overlayContainer.appendChild(overlay);
+
+  // Title bar div
+  const titleBar = document.createElement('div');
+  titleBar.style.cssText = `
+    width:100%;
+    height:${TITLE_BAR_HEIGHT}px;
+    background:${TITLE_BAR_COLOR};
+    cursor:grab;
+    border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
+  `;
+  overlay.appendChild(titleBar);
+
+  // Terminal container
+  const termContainer = document.createElement('div');
+  termContainer.style.cssText = `
+    width:100%;
+    height:calc(100% - ${TITLE_BAR_HEIGHT}px);
+    overflow:hidden;
+  `;
+  overlay.appendChild(termContainer);
 
   const terminal = new Terminal({
     theme: {
@@ -57,11 +91,11 @@ export async function createTerminalNode(
 
   const fitAddon = new FitAddon();
   terminal.loadAddon(fitAddon);
-  terminal.open(overlay);
+  terminal.open(termContainer);
 
   // Size the overlay so fitAddon can calculate cols/rows
-  overlay.style.width = `${nodeWidth - BORDER_INSET * 2}px`;
-  overlay.style.height = `${nodeHeight - BORDER_INSET * 2}px`;
+  overlay.style.width = `${nodeWidth}px`;
+  overlay.style.height = `${nodeHeight}px`;
   fitAddon.fit();
 
   const cols = terminal.cols;
@@ -80,24 +114,59 @@ export async function createTerminalNode(
     invoke('write_pty', { id, data });
   });
 
-  // Focus handling
-  overlay.addEventListener('mousedown', (e) => {
+  // Title bar drag — delegates to PixiJS gfx for world-space dragging
+  let dragging = false;
+  let dragStartWorldX = 0;
+  let dragStartWorldY = 0;
+  let gfxStartX = 0;
+  let gfxStartY = 0;
+
+  titleBar.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
     e.stopPropagation();
+
+    // Bring to front
+    const parent = gfx.parent;
+    if (parent) {
+      parent.setChildIndex(gfx, parent.children.length - 1);
+    }
+    setActiveNode(id);
+
+    dragging = true;
+    titleBar.style.cursor = 'grabbing';
+    dragStartWorldX = e.clientX;
+    dragStartWorldY = e.clientY;
+    gfxStartX = gfx.x;
+    gfxStartY = gfx.y;
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const scale = gfx.parent?.scale.x ?? 1;
+    gfx.x = gfxStartX + (e.clientX - dragStartWorldX) / scale;
+    gfx.y = gfxStartY + (e.clientY - dragStartWorldY) / scale;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (dragging) {
+      dragging = false;
+      titleBar.style.cursor = 'grab';
+    }
+  });
+
+  // Click terminal area to focus
+  termContainer.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    const parent = gfx.parent;
+    if (parent) {
+      parent.setChildIndex(gfx, parent.children.length - 1);
+    }
     setActiveNode(id);
   });
 
-  const node: TerminalNode = { id, terminal, fitAddon, overlay, unlisten, gfx };
+  const node: TerminalNode = { id, terminal, fitAddon, overlay, unlisten, gfx, nodeWidth, nodeHeight };
   nodes.push(node);
   return node;
-}
-
-function redrawBorder(gfx: Graphics, color: string) {
-  const w = gfx.width;
-  const h = gfx.height;
-  gfx.clear()
-    .roundRect(0, 0, w, h, 8)
-    .fill(FILL_COLOR)
-    .stroke({ width: 2, color });
 }
 
 export function setActiveNode(id: string | null) {
@@ -105,10 +174,12 @@ export function setActiveNode(id: string | null) {
   for (const node of nodes) {
     if (node.id === id) {
       node.terminal.focus();
-      redrawBorder(node.gfx, BORDER_FOCUSED);
+      node.overlay.style.borderColor = BORDER_FOCUSED;
+      // Bring overlay to top
+      node.overlay.style.zIndex = `${nodes.length + 1}`;
     } else {
       node.terminal.blur();
-      redrawBorder(node.gfx, BORDER_DEFAULT);
+      node.overlay.style.borderColor = BORDER_DEFAULT;
     }
   }
 }
@@ -130,13 +201,20 @@ export function syncOverlays(world: Container) {
 
     node.overlay.style.display = 'block';
 
-    const x = node.gfx.x * scale + worldX + BORDER_INSET * scale;
-    const y = node.gfx.y * scale + worldY + BORDER_INSET * scale;
+    // Position at the gfx origin — overlay covers the full node
+    const x = node.gfx.x * scale + worldX;
+    const y = node.gfx.y * scale + worldY;
+
+    // z-index matches PixiJS child order
+    const childIndex = world.children.indexOf(node.gfx);
+    if (node.id !== activeNodeId) {
+      node.overlay.style.zIndex = `${childIndex}`;
+    }
 
     node.overlay.style.left = `${x}px`;
     node.overlay.style.top = `${y}px`;
-    node.overlay.style.width = `${node.gfx.width - BORDER_INSET * 2}px`;
-    node.overlay.style.height = `${node.gfx.height - BORDER_INSET * 2}px`;
+    node.overlay.style.width = `${node.nodeWidth}px`;
+    node.overlay.style.height = `${node.nodeHeight}px`;
     node.overlay.style.transformOrigin = 'top left';
     node.overlay.style.transform = `scale(${scale})`;
   }

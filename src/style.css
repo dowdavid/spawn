@@ -16,3 +16,17 @@ html, body {
 canvas {
   display: block;
 }
+
+/* Ensure terminal overlays are fully opaque and stack correctly */
+.terminal-overlay {
+  isolation: isolate;
+  background: #16213e;
+}
+
+.terminal-overlay .xterm {
+  height: 100%;
+}
+
+.terminal-overlay .xterm-viewport {
+  background-color: #16213e !important;
+}
