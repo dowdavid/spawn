@@ -9,6 +9,7 @@ import {
   blurAllTerminals,
 } from './terminal';
 import { createProjectNode } from './project';
+import { initConnectionLayer, syncConnections } from './connection';
 import '@xterm/xterm/css/xterm.css';
 
 async function init() {
@@ -23,6 +24,7 @@ async function init() {
 
   document.body.appendChild(app.canvas);
   initOverlayContainer();
+  initConnectionLayer();
 
   const world = createCanvas(app);
 
@@ -55,6 +57,7 @@ async function init() {
   // Overlay sync loop
   function syncLoop() {
     syncOverlays(world);
+    syncConnections(world);
     requestAnimationFrame(syncLoop);
   }
   requestAnimationFrame(syncLoop);
