@@ -1,4 +1,5 @@
 import { Application } from 'pixi.js';
+import { createCanvas } from './canvas';
 
 async function init() {
   const app = new Application();
@@ -11,6 +12,8 @@ async function init() {
   });
 
   document.body.appendChild(app.canvas);
+
+  const world = createCanvas(app);
 }
 
 init();
