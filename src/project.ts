@@ -35,13 +35,13 @@ interface ProjectData {
 }
 const projectData = new Map<string, ProjectData>();
 
-export function createProjectNode(
+export async function createProjectNode(
   id: string,
   gfx: Graphics,
   nodeWidth: number,
   nodeHeight: number,
   dirPath: string,
-): void {
+): Promise<void> {
   const overlayContainer = getOverlayContainer();
 
   // Outer wrapper — covers the full node area including border
@@ -185,11 +185,24 @@ export function createProjectNode(
   // Initialize expanded folders set for this project
   expandedFolders.set(id, new Set<string>());
 
-  // Store project-specific data locally
-  projectData.set(id, { dirPath, treeContainer, unlisten: null });
-
   // Render the initial file tree
-  renderTree(id, dirPath, treeContainer, 0);
+  await renderTree(id, dirPath, treeContainer, 0);
+
+  // Start file watcher
+  await invoke('watch_directory', { id, path: dirPath });
+
+  // Debounced refresh on file changes
+  let refreshTimeout: ReturnType<typeof setTimeout> | null = null;
+  const unlisten = await listen<{ path: string; kind: string }>(
+    `file-changed-${id}`,
+    () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => refreshProjectTree(id), 300);
+    },
+  );
+
+  // Store project-specific data locally
+  projectData.set(id, { dirPath, treeContainer, unlisten });
 }
 
 async function renderTree(
@@ -294,9 +307,8 @@ export function refreshProjectTree(projectId: string): void {
 
 export async function destroyProjectNode(id: string): Promise<void> {
   const data = projectData.get(id);
-  if (data?.unlisten) {
-    data.unlisten();
-  }
+  if (data?.unlisten) data.unlisten();
+  await invoke('unwatch_directory', { id }).catch(() => {});
   const entry = getNode(id);
   if (entry) entry.overlay.remove();
   projectData.delete(id);
