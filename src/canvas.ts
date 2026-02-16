@@ -50,5 +50,34 @@ export function createCanvas(app: Application) {
     isPanning = false;
   });
 
+  // Zoom
+  const MIN_SCALE = 0.1;
+  const MAX_SCALE = 5.0;
+
+  app.canvas.addEventListener('wheel', (e: WheelEvent) => {
+    e.preventDefault();
+
+    const rect = app.canvas.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+
+    // World position under cursor before zoom
+    const worldBeforeX = (cursorX - world.x) / world.scale.x;
+    const worldBeforeY = (cursorY - world.y) / world.scale.y;
+
+    // Adjust scale
+    const factor = e.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, world.scale.x * factor));
+    world.scale.set(newScale);
+
+    // World position under cursor after zoom
+    const worldAfterX = (cursorX - world.x) / world.scale.x;
+    const worldAfterY = (cursorY - world.y) / world.scale.y;
+
+    // Correct position so cursor stays over same world point
+    world.x += (worldAfterX - worldBeforeX) * world.scale.x;
+    world.y += (worldAfterY - worldBeforeY) * world.scale.y;
+  }, { passive: false });
+
   return world;
 }
