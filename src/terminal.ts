@@ -18,7 +18,7 @@ export interface TerminalNode {
 
 const BORDER_WIDTH = 2;
 const CORNER_RADIUS = 8;
-const MIN_VISIBLE_SCALE = 0.3;
+
 const BORDER_DEFAULT = '#0f3460';
 const BORDER_FOCUSED = '#e94560';
 const FILL_COLOR = '#16213e';
@@ -64,17 +64,56 @@ export async function createTerminalNode(
     background:${TITLE_BAR_COLOR};
     cursor:grab;
     border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
+    display:flex;
+    align-items:center;
+    padding:0 8px;
   `;
+  // Drag grip icon (left)
+  const gripIcon = document.createElement('div');
+  gripIcon.style.cssText = 'display:flex;align-items:center;';
+  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
+  titleBar.appendChild(gripIcon);
+
+  // Spacer
+  const spacer = document.createElement('div');
+  spacer.style.cssText = 'flex:1;';
+  titleBar.appendChild(spacer);
+
+  // Close button (right)
+  const closeBtn = document.createElement('div');
+  closeBtn.style.cssText = 'display:flex;align-items:center;cursor:pointer;padding:2px;border-radius:4px;';
+  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+  closeBtn.addEventListener('mouseenter', () => { closeBtn.querySelector('svg')!.style.stroke = '#e94560'; });
+  closeBtn.addEventListener('mouseleave', () => { closeBtn.querySelector('svg')!.style.stroke = '#4a5568'; });
+  closeBtn.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    destroyTerminalNode(id);
+    const parent = gfx.parent;
+    if (parent) parent.removeChild(gfx);
+  });
+  titleBar.appendChild(closeBtn);
+
   overlay.appendChild(titleBar);
 
-  // Terminal container
-  const termContainer = document.createElement('div');
-  termContainer.style.cssText = `
+  // Terminal wrapper with padding
+  const termPadding = document.createElement('div');
+  termPadding.style.cssText = `
     width:100%;
     height:calc(100% - ${TITLE_BAR_HEIGHT}px);
     overflow:hidden;
+    padding:6px 0px 12px 12px;
+    box-sizing:border-box;
   `;
-  overlay.appendChild(termContainer);
+  overlay.appendChild(termPadding);
+
+  // Inner container that xterm.js fits into
+  const termContainer = document.createElement('div');
+  termContainer.style.cssText = `
+    width:100%;
+    height:100%;
+    overflow:hidden;
+  `;
+  termPadding.appendChild(termContainer);
 
   const terminal = new Terminal({
     theme: {
@@ -194,11 +233,6 @@ export function syncOverlays(world: Container) {
   const worldY = world.y;
 
   for (const node of nodes) {
-    if (scale < MIN_VISIBLE_SCALE) {
-      node.overlay.style.display = 'none';
-      continue;
-    }
-
     node.overlay.style.display = 'block';
 
     // Position at the gfx origin — overlay covers the full node
