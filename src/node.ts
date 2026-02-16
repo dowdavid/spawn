@@ -4,6 +4,9 @@ export const NODE_WIDTH = 720;
 export const NODE_HEIGHT = 480;
 export const TITLE_BAR_HEIGHT = 30;
 
+export const PROJECT_WIDTH = 400;
+export const PROJECT_HEIGHT = 600;
+
 export interface NodeHandle {
   id: string;
   gfx: Graphics;

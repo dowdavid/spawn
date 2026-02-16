@@ -1,12 +1,14 @@
 import { Application, FederatedPointerEvent } from 'pixi.js';
+import { open } from '@tauri-apps/plugin-dialog';
 import { createCanvas } from './canvas';
-import { createNode, NODE_WIDTH, NODE_HEIGHT } from './node';
-import { initOverlayContainer } from './state';
+import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT } from './node';
+import { initOverlayContainer, getActiveNodeId, getNode } from './state';
 import {
   createTerminalNode,
   syncOverlays,
   blurAllTerminals,
 } from './terminal';
+import { createProjectNode } from './project';
 import '@xterm/xterm/css/xterm.css';
 
 async function init() {
@@ -56,6 +58,26 @@ async function init() {
     requestAnimationFrame(syncLoop);
   }
   requestAnimationFrame(syncLoop);
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', async (e) => {
+    // Don't capture shortcuts when terminal is focused
+    const active = getActiveNodeId();
+    const activeEntry = active ? getNode(active) : null;
+    if (activeEntry?.type === 'terminal') return;
+
+    // Cmd+P — new project node
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyP') {
+      e.preventDefault();
+      const selected = await open({ directory: true });
+      if (typeof selected === 'string') {
+        const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - PROJECT_WIDTH / 2;
+        const viewY = (-world.y + window.innerHeight / 2) / world.scale.y - PROJECT_HEIGHT / 2;
+        const handle = createNode(world, viewX, viewY);
+        createProjectNode(handle.id, handle.gfx, PROJECT_WIDTH, PROJECT_HEIGHT, selected);
+      }
+    }
+  });
 }
 
 init();

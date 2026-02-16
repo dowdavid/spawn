@@ -30,3 +30,22 @@ canvas {
 .terminal-overlay .xterm-viewport {
   background-color: #16213e !important;
 }
+
+/* Project node overlays */
+.project-overlay {
+  isolation: isolate;
+  background: #16213e;
+}
+
+.project-overlay::-webkit-scrollbar {
+  width: 6px;
+}
+
+.project-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.project-overlay::-webkit-scrollbar-thumb {
+  background: #2a3a4a;
+  border-radius: 3px;
+}
