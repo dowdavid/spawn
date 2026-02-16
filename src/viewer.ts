@@ -158,10 +158,9 @@ export async function createViewerNode(
     overlay.style.zIndex = `${getAllNodes().length + 1}`;
   });
 
-  // Register as 'terminal' type in state (lightweight, no terminal-specific data needed)
   registerNode({
     id,
-    type: 'terminal',
+    type: 'viewer',
     gfx,
     overlay,
     width: nodeWidth,

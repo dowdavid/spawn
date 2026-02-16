@@ -307,11 +307,11 @@ export function setActiveProjectNode(id: string | null): void {
   }
 }
 
-export function refreshProjectTree(projectId: string): void {
+export async function refreshProjectTree(projectId: string): Promise<void> {
   const data = projectData.get(projectId);
   if (!data) return;
   data.treeContainer.innerHTML = '';
-  renderTree(projectId, data.dirPath, data.treeContainer, 0);
+  await renderTree(projectId, data.dirPath, data.treeContainer, 0);
 }
 
 export async function destroyProjectNode(id: string): Promise<void> {

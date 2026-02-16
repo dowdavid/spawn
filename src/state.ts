@@ -1,7 +1,7 @@
 // src/state.ts
 import type { Graphics, Container } from 'pixi.js';
 
-export type NodeType = 'terminal' | 'project';
+export type NodeType = 'terminal' | 'project' | 'viewer';
 
 export interface NodeEntry {
   id: string;
@@ -23,6 +23,7 @@ export interface Connection {
 const nodes = new Map<string, NodeEntry>();
 const connections = new Map<string, Connection>();
 let activeNodeId: string | null = null;
+let lastActiveTerminalId: string | null = null;
 let overlayContainer: HTMLDivElement;
 
 export function initOverlayContainer(): HTMLDivElement {
@@ -94,8 +95,20 @@ export function getConnectionsForNode(nodeId: string): Connection[] {
 
 export function setActiveNodeId(id: string | null) {
   activeNodeId = id;
+  if (id) {
+    const entry = nodes.get(id);
+    if (entry?.type === 'terminal') lastActiveTerminalId = id;
+  }
 }
 
 export function getActiveNodeId(): string | null {
   return activeNodeId;
+}
+
+export function getLastActiveTerminalId(): string | null {
+  // Return only if the terminal still exists
+  if (lastActiveTerminalId && nodes.has(lastActiveTerminalId)) {
+    return lastActiveTerminalId;
+  }
+  return null;
 }
