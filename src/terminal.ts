@@ -4,16 +4,20 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { Container, Graphics } from 'pixi.js';
 import { NODE_WIDTH, NODE_HEIGHT, TITLE_BAR_HEIGHT } from './node';
+import {
+  getOverlayContainer,
+  registerNode,
+  unregisterNode,
+  getNode,
+  getAllNodes,
+  setActiveNodeId,
+  getActiveNodeId,
+} from './state';
 
-export interface TerminalNode {
-  id: string;
+export interface TerminalNodeData {
   terminal: Terminal;
   fitAddon: FitAddon;
-  overlay: HTMLDivElement;
   unlisten: UnlistenFn;
-  gfx: Graphics;
-  nodeWidth: number;
-  nodeHeight: number;
 }
 
 const BORDER_WIDTH = 2;
@@ -24,24 +28,16 @@ const BORDER_FOCUSED = '#e94560';
 const FILL_COLOR = '#16213e';
 const TITLE_BAR_COLOR = '#0f2040';
 
-const nodes: TerminalNode[] = [];
-let overlayContainer: HTMLDivElement;
-let activeNodeId: string | null = null;
-
-export function initOverlayContainer(): HTMLDivElement {
-  overlayContainer = document.createElement('div');
-  overlayContainer.style.cssText =
-    'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:10;';
-  document.body.appendChild(overlayContainer);
-  return overlayContainer;
-}
+const terminalData = new Map<string, TerminalNodeData>();
 
 export async function createTerminalNode(
   id: string,
   gfx: Graphics,
   nodeWidth: number,
   nodeHeight: number,
-): Promise<TerminalNode> {
+): Promise<void> {
+  const overlayContainer = getOverlayContainer();
+
   // Outer wrapper — covers the full node area including border
   const overlay = document.createElement('div');
   overlay.className = 'terminal-overlay';
@@ -203,22 +199,33 @@ export async function createTerminalNode(
     setActiveNode(id);
   });
 
-  const node: TerminalNode = { id, terminal, fitAddon, overlay, unlisten, gfx, nodeWidth, nodeHeight };
-  nodes.push(node);
-  return node;
+  // Register in centralized state
+  registerNode({
+    id,
+    type: 'terminal',
+    gfx,
+    overlay,
+    width: nodeWidth,
+    height: nodeHeight,
+  });
+
+  // Store terminal-specific data locally
+  terminalData.set(id, { terminal, fitAddon, unlisten });
 }
 
 export function setActiveNode(id: string | null) {
-  activeNodeId = id;
-  for (const node of nodes) {
-    if (node.id === id) {
-      node.terminal.focus();
-      node.overlay.style.borderColor = BORDER_FOCUSED;
+  setActiveNodeId(id);
+  const allNodes = getAllNodes();
+  for (const entry of allNodes) {
+    const data = terminalData.get(entry.id);
+    if (entry.id === id) {
+      if (data) data.terminal.focus();
+      entry.overlay.style.borderColor = BORDER_FOCUSED;
       // Bring overlay to top
-      node.overlay.style.zIndex = `${nodes.length + 1}`;
+      entry.overlay.style.zIndex = `${allNodes.length + 1}`;
     } else {
-      node.terminal.blur();
-      node.overlay.style.borderColor = BORDER_DEFAULT;
+      if (data) data.terminal.blur();
+      entry.overlay.style.borderColor = BORDER_DEFAULT;
     }
   }
 }
@@ -232,36 +239,38 @@ export function syncOverlays(world: Container) {
   const worldX = world.x;
   const worldY = world.y;
 
-  for (const node of nodes) {
-    node.overlay.style.display = 'block';
+  const activeId = getActiveNodeId();
+
+  for (const entry of getAllNodes()) {
+    entry.overlay.style.display = 'block';
 
     // Position at the gfx origin — overlay covers the full node
-    const x = node.gfx.x * scale + worldX;
-    const y = node.gfx.y * scale + worldY;
+    const x = entry.gfx.x * scale + worldX;
+    const y = entry.gfx.y * scale + worldY;
 
     // z-index matches PixiJS child order
-    const childIndex = world.children.indexOf(node.gfx);
-    if (node.id !== activeNodeId) {
-      node.overlay.style.zIndex = `${childIndex}`;
+    const childIndex = world.children.indexOf(entry.gfx);
+    if (entry.id !== activeId) {
+      entry.overlay.style.zIndex = `${childIndex}`;
     }
 
-    node.overlay.style.left = `${x}px`;
-    node.overlay.style.top = `${y}px`;
-    node.overlay.style.width = `${node.nodeWidth}px`;
-    node.overlay.style.height = `${node.nodeHeight}px`;
-    node.overlay.style.transformOrigin = 'top left';
-    node.overlay.style.transform = `scale(${scale})`;
+    entry.overlay.style.left = `${x}px`;
+    entry.overlay.style.top = `${y}px`;
+    entry.overlay.style.width = `${entry.width}px`;
+    entry.overlay.style.height = `${entry.height}px`;
+    entry.overlay.style.transformOrigin = 'top left';
+    entry.overlay.style.transform = `scale(${scale})`;
   }
 }
 
 export async function destroyTerminalNode(id: string) {
-  const idx = nodes.findIndex((n) => n.id === id);
-  if (idx === -1) return;
-  const node = nodes[idx];
-  node.unlisten();
-  node.terminal.dispose();
-  node.overlay.remove();
+  const data = terminalData.get(id);
+  if (!data) return;
+  data.unlisten();
+  data.terminal.dispose();
+  const entry = getNode(id);
+  if (entry) entry.overlay.remove();
   await invoke('kill_pty', { id });
-  nodes.splice(idx, 1);
-  if (activeNodeId === id) activeNodeId = null;
+  terminalData.delete(id);
+  unregisterNode(id);
 }

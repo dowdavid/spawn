@@ -1,8 +1,8 @@
 import { Application, FederatedPointerEvent } from 'pixi.js';
 import { createCanvas } from './canvas';
 import { createNode, NODE_WIDTH, NODE_HEIGHT } from './node';
+import { initOverlayContainer } from './state';
 import {
-  initOverlayContainer,
   createTerminalNode,
   syncOverlays,
   blurAllTerminals,
