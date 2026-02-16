@@ -2,7 +2,7 @@ import { Application, FederatedPointerEvent } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { open } from '@tauri-apps/plugin-dialog';
 import { createCanvas } from './canvas';
-import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT } from './node';
+import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT, VIEWER_WIDTH, VIEWER_HEIGHT } from './node';
 import {
   initOverlayContainer,
   getActiveNodeId,
@@ -17,6 +17,7 @@ import {
   blurAllTerminals,
 } from './terminal';
 import { createProjectNode, getProjectPath } from './project';
+import { createViewerNode } from './viewer';
 import { initConnectionLayer, syncConnections } from './connection';
 import '@xterm/xterm/css/xterm.css';
 
@@ -102,6 +103,15 @@ async function init() {
       }
       return;
     }
+  });
+
+  // Open file viewer on double-click from project tree
+  window.addEventListener('open-file-viewer', async (e) => {
+    const { filePath, fileName } = (e as CustomEvent).detail;
+    const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - VIEWER_WIDTH / 2;
+    const viewY = (-world.y + window.innerHeight / 2) / world.scale.y - VIEWER_HEIGHT / 2;
+    const handle = createNode(world, viewX, viewY);
+    await createViewerNode(handle.id, handle.gfx, VIEWER_WIDTH, VIEWER_HEIGHT, filePath, fileName);
   });
 }
 

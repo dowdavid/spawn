@@ -49,3 +49,27 @@ canvas {
   background: #2a3a4a;
   border-radius: 3px;
 }
+
+/* Viewer node overlays */
+.viewer-overlay {
+  isolation: isolate;
+  background: #16213e;
+}
+
+.viewer-overlay pre {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.viewer-overlay::-webkit-scrollbar {
+  width: 6px;
+}
+
+.viewer-overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.viewer-overlay::-webkit-scrollbar-thumb {
+  background: #2a3a4a;
+  border-radius: 3px;
+}

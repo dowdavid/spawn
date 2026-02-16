@@ -7,6 +7,9 @@ export const TITLE_BAR_HEIGHT = 30;
 export const PROJECT_WIDTH = 400;
 export const PROJECT_HEIGHT = 600;
 
+export const VIEWER_WIDTH = 600;
+export const VIEWER_HEIGHT = 500;
+
 export interface NodeHandle {
   id: string;
   gfx: Graphics;
