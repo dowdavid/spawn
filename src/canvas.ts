@@ -79,5 +79,10 @@ export function createCanvas(app: Application) {
     world.y += (worldAfterY - worldBeforeY) * world.scale.y;
   }, { passive: false });
 
+  // Prevent browser context menu on canvas
+  app.canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+  });
+
   return world;
 }

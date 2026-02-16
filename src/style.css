@@ -9,4 +9,10 @@ html, body {
   height: 100%;
   overflow: hidden;
   background: #1a1a2e;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+canvas {
+  display: block;
 }
