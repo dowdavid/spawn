@@ -8,7 +8,9 @@ import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT, VIE
 import {
   initOverlayContainer,
   getActiveNodeId,
+  setActiveNodeId,
   getNode,
+  getAllNodes,
   getNodesByType,
   getLastActiveTerminalId,
   addConnection,
@@ -25,6 +27,8 @@ import {
 import { createProjectNode, destroyProjectNode, getProjectPath } from './project';
 import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
 import { initConnectionLayer, syncConnections } from './connection';
+import { attachNodule, syncNoduleVisibility } from './nodule';
+import { attachResizeFrame, initResizeCursors } from './resize';
 import { gatherWorkspaceState, restoreWorkspaceState } from './persistence';
 import '@xterm/xterm/css/xterm.css';
 
@@ -41,6 +45,7 @@ async function init() {
   document.body.appendChild(app.canvas);
   initOverlayContainer();
   initConnectionLayer();
+  initResizeCursors();
 
   const world = createCanvas(app);
 
@@ -50,6 +55,11 @@ async function init() {
     if (json) {
       const state = JSON.parse(json);
       await restoreWorkspaceState(state, world);
+      // Attach nodules and resize frames to all restored nodes
+      for (const entry of getAllNodes()) {
+        attachNodule(entry.id);
+        attachResizeFrame(entry.id);
+      }
     }
   } catch (e) {
     console.warn('Failed to restore workspace:', e);
@@ -75,10 +85,11 @@ async function init() {
     getCurrentWindow().destroy();
   });
 
-  // Click canvas background to blur all terminals
+  // Click canvas background to deactivate all nodes
   app.stage.on('pointerdown', (event: FederatedPointerEvent) => {
     if (event.target === app.stage) {
       blurAllTerminals();
+      setActiveNodeId(null);
     }
   });
 
@@ -86,6 +97,7 @@ async function init() {
   function syncLoop() {
     syncOverlays(world);
     syncConnections(world);
+    syncNoduleVisibility();
     requestAnimationFrame(syncLoop);
   }
   requestAnimationFrame(syncLoop);
@@ -138,6 +150,8 @@ async function init() {
         : (-world.y + window.innerHeight / 2) / world.scale.y - NODE_HEIGHT / 2;
       const handle = createNode(world, viewX, viewY);
       await createTerminalNode(handle.id, handle.gfx, NODE_WIDTH, NODE_HEIGHT);
+      attachNodule(handle.id);
+      attachResizeFrame(handle.id);
       setActiveNode(handle.id);
       return;
     }
@@ -162,6 +176,8 @@ async function init() {
           : projectNode.gfx.y;
         const handle = createNode(world, termX, termY);
         await createTerminalNode(handle.id, handle.gfx, NODE_WIDTH, NODE_HEIGHT, projPath, projPath);
+        attachNodule(handle.id);
+        attachResizeFrame(handle.id);
         addConnection(handle.id, projectNode.id);
         setActiveNode(handle.id);
       } else {
@@ -174,6 +190,8 @@ async function init() {
           : (-world.y + window.innerHeight / 2) / world.scale.y - NODE_HEIGHT / 2;
         const handle = createNode(world, viewX, viewY);
         await createTerminalNode(handle.id, handle.gfx, NODE_WIDTH, NODE_HEIGHT);
+        attachNodule(handle.id);
+        attachResizeFrame(handle.id);
         setActiveNode(handle.id);
       }
       return;
@@ -196,6 +214,8 @@ async function init() {
           : (-world.y + window.innerHeight / 2) / world.scale.y - PROJECT_HEIGHT / 2;
         const handle = createNode(world, projX, projY);
         await createProjectNode(handle.id, handle.gfx, PROJECT_WIDTH, PROJECT_HEIGHT, selected);
+        attachNodule(handle.id);
+        attachResizeFrame(handle.id);
         if (lastTerm) {
           addConnection(lastTermId!, handle.id);
           const projectName = selected.split('/').pop() || selected;
@@ -223,6 +243,8 @@ async function init() {
 
     const handle = createNode(world, viewX, viewY);
     await createViewerNode(handle.id, handle.gfx, VIEWER_WIDTH, VIEWER_HEIGHT, filePath, fileName);
+    attachNodule(handle.id);
+    attachResizeFrame(handle.id);
     blurAllTerminals();
     setActiveViewerNode(handle.id);
 

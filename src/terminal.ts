@@ -13,6 +13,7 @@ import {
   setActiveNodeId,
   getActiveNodeId,
 } from './state';
+import { resetNodeSize, detachResizeFrame } from './resize';
 
 export interface TerminalNodeData {
   terminal: Terminal;
@@ -31,7 +32,21 @@ const BORDER_FOCUSED = '#e94560';
 const FILL_COLOR = '#16213e';
 const TITLE_BAR_COLOR = '#0f2040';
 
+// Focused border color per node type — used by syncOverlays to manage all borders centrally
+const FOCUSED_BORDER_COLORS: Record<string, string> = {
+  terminal: '#e94560',
+  project: '#a78bfa',
+  viewer: '#34d399',
+};
+
 const terminalData = new Map<string, TerminalNodeData>();
+
+export function refitTerminal(id: string): void {
+  const data = terminalData.get(id);
+  if (!data) return;
+  data.fitAddon.fit();
+  invoke('resize_pty', { id, cols: data.terminal.cols, rows: data.terminal.rows }).catch(() => {});
+}
 
 export async function createTerminalNode(
   id: string,
@@ -75,9 +90,16 @@ export async function createTerminalNode(
   gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
 
+  // Terminal type icon (Lucide Terminal)
+  const typeIcon = document.createElement('div');
+  typeIcon.className = 'node-type-icon';
+  typeIcon.style.cssText = 'display:flex;align-items:center;padding-left:2px;';
+  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>`;
+  titleBar.appendChild(typeIcon);
+
   // Title label (shows project name if connected)
   const titleLabel = document.createElement('div');
-  titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;';
+  titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:4px;';
   if (connectedProjectPath) {
     titleLabel.textContent = connectedProjectPath.split('/').pop() || connectedProjectPath;
   }
@@ -188,6 +210,11 @@ export async function createTerminalNode(
     gfxStartY = gfx.y;
   });
 
+  titleBar.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    resetNodeSize(id);
+  });
+
   window.addEventListener('mousemove', (e) => {
     if (!dragging) return;
     const scale = gfx.parent?.scale.x ?? 1;
@@ -276,6 +303,20 @@ export function syncOverlays(world: Container) {
     entry.overlay.style.height = `${entry.height}px`;
     entry.overlay.style.transformOrigin = 'top left';
     entry.overlay.style.transform = `scale(${scale})`;
+
+    // Centralized border state — only the active node gets its focused color
+    const isActive = entry.id === activeId;
+    entry.overlay.style.borderColor = isActive
+      ? (FOCUSED_BORDER_COLORS[entry.type] || BORDER_DEFAULT)
+      : BORDER_DEFAULT;
+
+    // Type icon color — colored when active, grey when inactive
+    const iconSvg = entry.overlay.querySelector('.node-type-icon svg') as SVGElement | null;
+    if (iconSvg) {
+      iconSvg.style.stroke = isActive
+        ? (FOCUSED_BORDER_COLORS[entry.type] || '#4a5568')
+        : '#4a5568';
+    }
   }
 }
 
@@ -293,6 +334,7 @@ export async function destroyTerminalNode(id: string) {
   if (!data) return;
   data.unlisten();
   data.terminal.dispose();
+  detachResizeFrame(id);
   const entry = getNode(id);
   if (entry) entry.overlay.remove();
   await invoke('kill_pty', { id });

@@ -11,6 +11,7 @@ import {
   getAllNodes,
 } from './state';
 import { blurAllTerminals } from './terminal';
+import { resetNodeSize, detachResizeFrame } from './resize';
 
 interface FileEntry {
   name: string;
@@ -22,7 +23,7 @@ const BORDER_WIDTH = 2;
 const CORNER_RADIUS = 8;
 
 const BORDER_DEFAULT = '#0f3460';
-const BORDER_FOCUSED = '#e94560';
+const BORDER_FOCUSED = '#a78bfa';
 const FILL_COLOR = '#16213e';
 const TITLE_BAR_COLOR = '#0f2040';
 
@@ -78,11 +79,18 @@ export async function createProjectNode(
   gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
 
+  // Project type icon (Lucide FolderOpen)
+  const typeIcon = document.createElement('div');
+  typeIcon.className = 'node-type-icon';
+  typeIcon.style.cssText = 'display:flex;align-items:center;padding-left:2px;';
+  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
+  titleBar.appendChild(typeIcon);
+
   // Folder name label
   const folderName = dirPath.split('/').pop() || dirPath;
   const label = document.createElement('div');
   label.style.cssText =
-    'flex:1;color:#c0c8d0;font-family:Menlo,Monaco,"Courier New",monospace;font-size:12px;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    'flex:1;color:#c0c8d0;font-family:Menlo,Monaco,"Courier New",monospace;font-size:12px;padding-left:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
   label.textContent = folderName;
   titleBar.appendChild(label);
 
@@ -92,7 +100,7 @@ export async function createProjectNode(
     'display:flex;align-items:center;cursor:pointer;padding:2px;border-radius:4px;';
   closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
   closeBtn.addEventListener('mouseenter', () => {
-    closeBtn.querySelector('svg')!.style.stroke = '#e94560';
+    closeBtn.querySelector('svg')!.style.stroke = '#a78bfa';
   });
   closeBtn.addEventListener('mouseleave', () => {
     closeBtn.querySelector('svg')!.style.stroke = '#4a5568';
@@ -143,6 +151,11 @@ export async function createProjectNode(
     dragStartWorldY = e.clientY;
     gfxStartX = gfx.x;
     gfxStartY = gfx.y;
+  });
+
+  titleBar.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    resetNodeSize(id);
   });
 
   window.addEventListener('mousemove', (e) => {
@@ -338,15 +351,9 @@ export function getExpandedFolders(id: string): Set<string> | undefined {
 export function setActiveProjectNode(id: string | null): void {
   setActiveNodeId(id);
   blurAllTerminals();
-  for (const [pid, _data] of projectData) {
-    const entry = getNode(pid);
-    if (!entry) continue;
-    if (pid === id) {
-      entry.overlay.style.borderColor = BORDER_FOCUSED;
-      entry.overlay.style.zIndex = `${getAllNodes().length + 1}`;
-    } else {
-      entry.overlay.style.borderColor = BORDER_DEFAULT;
-    }
+  if (id) {
+    const entry = getNode(id);
+    if (entry) entry.overlay.style.zIndex = `${getAllNodes().length + 1}`;
   }
 }
 
@@ -360,6 +367,7 @@ export async function refreshProjectTree(projectId: string): Promise<void> {
 export async function destroyProjectNode(id: string): Promise<void> {
   const data = projectData.get(id);
   if (data?.unlisten) data.unlisten();
+  detachResizeFrame(id);
   await invoke('unwatch_directory', { id }).catch(() => {});
   const entry = getNode(id);
   if (entry) entry.overlay.remove();

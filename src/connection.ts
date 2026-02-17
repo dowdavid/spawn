@@ -1,14 +1,22 @@
 import type { Container } from 'pixi.js';
-import { getAllConnections, getNode } from './state';
+import { getAllConnections, getAllNodes, getActiveNodeId, getNode, getOverlayContainer } from './state';
 
-let svgLayer: SVGSVGElement;
+// Two SVG layers: back (below all nodes) and front (above inactive, below active)
+let svgBack: SVGSVGElement;
+let svgFront: SVGSVGElement;
 
-export function initConnectionLayer(): SVGSVGElement {
-  svgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svgLayer.style.cssText =
-    'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:5;';
-  document.body.appendChild(svgLayer);
-  return svgLayer;
+const SVG_CSS = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+
+export function initConnectionLayer(): void {
+  const container = getOverlayContainer();
+
+  svgBack = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svgBack.style.cssText = SVG_CSS + 'z-index:0;';
+  container.appendChild(svgBack);
+
+  svgFront = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svgFront.style.cssText = SVG_CSS;
+  container.appendChild(svgFront);
 }
 
 export function createConnectionPath(): SVGPathElement {
@@ -17,7 +25,8 @@ export function createConnectionPath(): SVGPathElement {
   path.setAttribute('stroke', '#4a9eff');
   path.setAttribute('stroke-width', '2');
   path.setAttribute('stroke-opacity', '0.6');
-  svgLayer.appendChild(path);
+  // Start in back layer; syncConnections will promote if needed
+  svgBack.appendChild(path);
   return path;
 }
 
@@ -25,6 +34,10 @@ export function syncConnections(world: Container) {
   const scale = world.scale.x;
   const worldX = world.x;
   const worldY = world.y;
+  const activeId = getActiveNodeId();
+
+  // Front layer sits above inactive nodes but below the active node
+  svgFront.style.zIndex = `${getAllNodes().length}`;
 
   for (const conn of getAllConnections()) {
     const source = getNode(conn.sourceId);
@@ -38,6 +51,13 @@ export function syncConnections(world: Container) {
     // Ensure SVG path element exists
     if (!conn.element) {
       conn.element = createConnectionPath();
+    }
+
+    // Move path to front layer if connected to active node, back layer otherwise
+    const isActive = conn.sourceId === activeId || conn.targetId === activeId;
+    const correctLayer = isActive ? svgFront : svgBack;
+    if (conn.element.parentNode !== correctLayer) {
+      correctLayer.appendChild(conn.element);
     }
 
     // Screen positions of node centers
@@ -101,11 +121,9 @@ function getEdgePoint(
   const halfH = nodeH / 2;
 
   if (absDx * halfH > absDy * halfW) {
-    // Hits left or right edge
     const sign = dx > 0 ? 1 : -1;
     return [cx + sign * halfW, cy + (dy * halfW) / absDx];
   } else {
-    // Hits top or bottom edge
     const sign = dy > 0 ? 1 : -1;
     return [cx + (dx * halfH) / absDy, cy + sign * halfH];
   }

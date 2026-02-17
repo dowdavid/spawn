@@ -10,6 +10,13 @@ export const PROJECT_HEIGHT = 600;
 export const VIEWER_WIDTH = 600;
 export const VIEWER_HEIGHT = 500;
 
+export const MIN_NODE_WIDTH = 400;
+export const MIN_NODE_HEIGHT = 200;
+export const MIN_PROJECT_WIDTH = 250;
+export const MIN_PROJECT_HEIGHT = 200;
+export const MIN_VIEWER_WIDTH = 300;
+export const MIN_VIEWER_HEIGHT = 200;
+
 export interface NodeHandle {
   id: string;
   gfx: Graphics;
