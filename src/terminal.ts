@@ -20,6 +20,7 @@ export interface TerminalNodeData {
   unlisten: UnlistenFn;
   cwd?: string;
   connectedProjectPath?: string;
+  titleLabel: HTMLDivElement;
 }
 
 const BORDER_WIDTH = 2;
@@ -74,14 +75,13 @@ export async function createTerminalNode(
   gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
 
-  // Title label (shows project path if connected)
+  // Title label (shows project name if connected)
+  const titleLabel = document.createElement('div');
+  titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;';
   if (connectedProjectPath) {
-    const titleLabel = document.createElement('div');
-    const shortPath = connectedProjectPath.replace(/^\/Users\/[^/]+/, '~');
-    titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    titleLabel.textContent = shortPath;
-    titleBar.appendChild(titleLabel);
+    titleLabel.textContent = connectedProjectPath.split('/').pop() || connectedProjectPath;
   }
+  titleBar.appendChild(titleLabel);
 
   // Spacer
   const spacer = document.createElement('div');
@@ -223,7 +223,7 @@ export async function createTerminalNode(
   });
 
   // Store terminal-specific data locally
-  terminalData.set(id, { terminal, fitAddon, unlisten, cwd, connectedProjectPath });
+  terminalData.set(id, { terminal, fitAddon, unlisten, cwd, connectedProjectPath, titleLabel });
 }
 
 export function setActiveNode(id: string | null) {
@@ -281,6 +281,11 @@ export function syncOverlays(world: Container) {
 
 export function getTerminalData(id: string): TerminalNodeData | undefined {
   return terminalData.get(id);
+}
+
+export function setTerminalProjectLabel(id: string, projectName: string): void {
+  const data = terminalData.get(id);
+  if (data) data.titleLabel.textContent = projectName;
 }
 
 export async function destroyTerminalNode(id: string) {

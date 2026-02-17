@@ -308,7 +308,7 @@ async function renderTree(
       row.addEventListener('dblclick', (e) => {
         e.stopPropagation();
         const event = new CustomEvent('open-file-viewer', {
-          detail: { filePath: entry.path, fileName: entry.name },
+          detail: { filePath: entry.path, fileName: entry.name, projectId },
         });
         window.dispatchEvent(event);
       });

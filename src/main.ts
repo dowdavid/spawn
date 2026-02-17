@@ -20,9 +20,10 @@ import {
   setActiveNode,
   syncOverlays,
   blurAllTerminals,
+  setTerminalProjectLabel,
 } from './terminal';
 import { createProjectNode, destroyProjectNode, getProjectPath } from './project';
-import { createViewerNode, destroyViewerNode } from './viewer';
+import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
 import { initConnectionLayer, syncConnections } from './connection';
 import { gatherWorkspaceState, restoreWorkspaceState } from './persistence';
 import '@xterm/xterm/css/xterm.css';
@@ -197,6 +198,8 @@ async function init() {
         await createProjectNode(handle.id, handle.gfx, PROJECT_WIDTH, PROJECT_HEIGHT, selected);
         if (lastTerm) {
           addConnection(lastTermId!, handle.id);
+          const projectName = selected.split('/').pop() || selected;
+          setTerminalProjectLabel(lastTermId!, projectName);
         }
       }
       return;
@@ -205,11 +208,27 @@ async function init() {
 
   // Open file viewer on double-click from project tree
   window.addEventListener('open-file-viewer', async (e) => {
-    const { filePath, fileName } = (e as CustomEvent).detail;
-    const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - VIEWER_WIDTH / 2;
-    const viewY = (-world.y + window.innerHeight / 2) / world.scale.y - VIEWER_HEIGHT / 2;
+    const { filePath, fileName, projectId } = (e as CustomEvent).detail;
+    const projectNode = projectId ? getNode(projectId) : null;
+
+    let viewX: number;
+    let viewY: number;
+    if (projectNode) {
+      viewX = projectNode.gfx.x + PROJECT_WIDTH + 50;
+      viewY = projectNode.gfx.y;
+    } else {
+      viewX = (-world.x + window.innerWidth / 2) / world.scale.x - VIEWER_WIDTH / 2;
+      viewY = (-world.y + window.innerHeight / 2) / world.scale.y - VIEWER_HEIGHT / 2;
+    }
+
     const handle = createNode(world, viewX, viewY);
     await createViewerNode(handle.id, handle.gfx, VIEWER_WIDTH, VIEWER_HEIGHT, filePath, fileName);
+    blurAllTerminals();
+    setActiveViewerNode(handle.id);
+
+    if (projectNode) {
+      addConnection(handle.id, projectNode.id);
+    }
   });
 }
 
