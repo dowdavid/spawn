@@ -18,6 +18,8 @@ export interface TerminalNodeData {
   terminal: Terminal;
   fitAddon: FitAddon;
   unlisten: UnlistenFn;
+  cwd?: string;
+  connectedProjectPath?: string;
 }
 
 const BORDER_WIDTH = 2;
@@ -221,7 +223,7 @@ export async function createTerminalNode(
   });
 
   // Store terminal-specific data locally
-  terminalData.set(id, { terminal, fitAddon, unlisten });
+  terminalData.set(id, { terminal, fitAddon, unlisten, cwd, connectedProjectPath });
 }
 
 export function setActiveNode(id: string | null) {
@@ -275,6 +277,10 @@ export function syncOverlays(world: Container) {
     entry.overlay.style.transformOrigin = 'top left';
     entry.overlay.style.transform = `scale(${scale})`;
   }
+}
+
+export function getTerminalData(id: string): TerminalNodeData | undefined {
+  return terminalData.get(id);
 }
 
 export async function destroyTerminalNode(id: string) {

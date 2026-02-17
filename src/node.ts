@@ -17,7 +17,10 @@ export interface NodeHandle {
 
 export function createNode(world: Container, x: number, y: number): NodeHandle {
   const id = crypto.randomUUID();
+  return createNodeWithId(world, x, y, id);
+}
 
+export function createNodeWithId(world: Container, x: number, y: number, id: string): NodeHandle {
   // Invisible graphics — just a position anchor for the HTML overlay
   const gfx = new Graphics();
   gfx.x = x;

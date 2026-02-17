@@ -28,7 +28,7 @@ const TITLE_BAR_COLOR = '#0f2040';
 
 const expandedFolders = new Map<string, Set<string>>();
 
-interface ProjectData {
+export interface ProjectData {
   dirPath: string;
   treeContainer: HTMLDivElement;
   unlisten: UnlistenFn | null;
@@ -41,6 +41,7 @@ export async function createProjectNode(
   nodeWidth: number,
   nodeHeight: number,
   dirPath: string,
+  initialExpandedFolders?: string[],
 ): Promise<void> {
   const overlayContainer = getOverlayContainer();
 
@@ -183,7 +184,7 @@ export async function createProjectNode(
   });
 
   // Initialize expanded folders set for this project
-  expandedFolders.set(id, new Set<string>());
+  expandedFolders.set(id, new Set<string>(initialExpandedFolders ?? []));
 
   // Render the initial file tree
   await renderTree(id, dirPath, treeContainer, 0);
@@ -244,10 +245,31 @@ async function renderTree(
       row.style.background = 'transparent';
     });
 
+    // Use flex layout for icon + name
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '4px';
+
     if (entry.is_directory) {
       const isExpanded = expanded?.has(entry.path) ?? false;
-      const arrow = isExpanded ? '\u25BC' : '\u25B6';
-      row.textContent = `${arrow} ${entry.name}`;
+      const chevron = document.createElement('span');
+      chevron.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
+      chevron.innerHTML = isExpanded
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6a7a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6a7a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+      row.appendChild(chevron);
+
+      const folderIcon = document.createElement('span');
+      folderIcon.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
+      folderIcon.innerHTML = isExpanded
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a8a9a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7a8a9a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
+      row.appendChild(folderIcon);
+
+      const nameSpan = document.createElement('span');
+      nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;';
+      nameSpan.textContent = entry.name;
+      row.appendChild(nameSpan);
 
       row.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -265,8 +287,21 @@ async function renderTree(
         refreshProjectTree(projectId);
       });
     } else {
-      // File entry — indent with spacer to align with folder names
-      row.textContent = `\u00A0\u00A0${entry.name}`;
+      // Spacer to align with folder chevron
+      const spacer = document.createElement('span');
+      spacer.style.cssText = 'width:12px;flex-shrink:0;';
+      row.appendChild(spacer);
+
+      const fileIcon = document.createElement('span');
+      fileIcon.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
+      fileIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6a7a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>';
+      row.appendChild(fileIcon);
+
+      const nameSpan = document.createElement('span');
+      nameSpan.style.cssText = 'overflow:hidden;text-overflow:ellipsis;';
+      nameSpan.textContent = entry.name;
+      row.appendChild(nameSpan);
+
       row.dataset.filePath = entry.path;
       row.dataset.fileName = entry.name;
 
@@ -290,6 +325,14 @@ async function renderTree(
 
 export function getProjectPath(id: string): string | undefined {
   return projectData.get(id)?.dirPath;
+}
+
+export function getProjectData(id: string): ProjectData | undefined {
+  return projectData.get(id);
+}
+
+export function getExpandedFolders(id: string): Set<string> | undefined {
+  return expandedFolders.get(id);
 }
 
 export function setActiveProjectNode(id: string | null): void {

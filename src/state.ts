@@ -67,6 +67,10 @@ export function getNodesByType(type: NodeType): NodeEntry[] {
 
 export function addConnection(sourceId: string, targetId: string): Connection {
   const id = crypto.randomUUID();
+  return addConnectionWithId(id, sourceId, targetId);
+}
+
+export function addConnectionWithId(id: string, sourceId: string, targetId: string): Connection {
   const conn: Connection = { id, sourceId, targetId, element: null };
   connections.set(id, conn);
   const source = nodes.get(sourceId);

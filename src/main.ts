@@ -1,6 +1,8 @@
 import { Application, FederatedPointerEvent } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { createCanvas } from './canvas';
 import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT, VIEWER_WIDTH, VIEWER_HEIGHT } from './node';
 import {
@@ -14,13 +16,15 @@ import {
 } from './state';
 import {
   createTerminalNode,
+  destroyTerminalNode,
   setActiveNode,
   syncOverlays,
   blurAllTerminals,
 } from './terminal';
-import { createProjectNode, getProjectPath } from './project';
-import { createViewerNode } from './viewer';
+import { createProjectNode, destroyProjectNode, getProjectPath } from './project';
+import { createViewerNode, destroyViewerNode } from './viewer';
 import { initConnectionLayer, syncConnections } from './connection';
+import { gatherWorkspaceState, restoreWorkspaceState } from './persistence';
 import '@xterm/xterm/css/xterm.css';
 
 async function init() {
@@ -38,6 +42,37 @@ async function init() {
   initConnectionLayer();
 
   const world = createCanvas(app);
+
+  // Restore saved workspace if one exists
+  try {
+    const json = await invoke<string | null>('load_workspace');
+    if (json) {
+      const state = JSON.parse(json);
+      await restoreWorkspaceState(state, world);
+    }
+  } catch (e) {
+    console.warn('Failed to restore workspace:', e);
+  }
+
+  // Save workspace helper
+  async function saveWorkspace() {
+    try {
+      const state = gatherWorkspaceState(world);
+      await invoke('save_workspace', { state: JSON.stringify(state) });
+    } catch (e) {
+      console.warn('Failed to save workspace:', e);
+    }
+  }
+
+  // Save workspace on window close
+  let isClosing = false;
+  getCurrentWindow().onCloseRequested(async (event) => {
+    if (isClosing) return;
+    isClosing = true;
+    event.preventDefault();
+    await saveWorkspace();
+    getCurrentWindow().destroy();
+  });
 
   // Click canvas background to blur all terminals
   app.stage.on('pointerdown', (event: FederatedPointerEvent) => {
@@ -60,6 +95,34 @@ async function init() {
     const active = getActiveNodeId();
     const activeEntry = active ? getNode(active) : null;
     if (activeEntry?.type === 'terminal' && !e.metaKey) return;
+
+    // Cmd+Q — save workspace then close the app
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyQ') {
+      e.preventDefault();
+      if (!isClosing) {
+        isClosing = true;
+        await saveWorkspace();
+        getCurrentWindow().destroy();
+      }
+      return;
+    }
+
+    // Cmd+W — close active node
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyW') {
+      e.preventDefault();
+      if (!activeEntry || !active) return;
+      const gfx = activeEntry.gfx;
+      if (activeEntry.type === 'terminal') {
+        await destroyTerminalNode(active);
+      } else if (activeEntry.type === 'project') {
+        await destroyProjectNode(active);
+      } else if (activeEntry.type === 'viewer') {
+        destroyViewerNode(active);
+      }
+      const parent = gfx.parent;
+      if (parent) parent.removeChild(gfx);
+      return;
+    }
 
     // Cmd+Shift+T — new disconnected terminal (check BEFORE Cmd+T since Shift+T also matches T)
     if (e.metaKey && e.shiftKey && e.code === 'KeyT') {

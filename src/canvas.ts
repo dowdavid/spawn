@@ -1,5 +1,11 @@
 import { Application, Container, FederatedPointerEvent } from 'pixi.js';
 
+let _setTargetScale: ((s: number) => void) | null = null;
+
+export function setTargetScale(scale: number) {
+  if (_setTargetScale) _setTargetScale(scale);
+}
+
 export function createCanvas(app: Application) {
   const world = new Container({ isRenderGroup: true });
   app.stage.addChild(world);
@@ -58,6 +64,9 @@ export function createCanvas(app: Application) {
   let targetScale = 1.0;
   let targetX = world.x;
   let targetY = world.y;
+
+  // Wire up module-level setter so restored viewport zoom syncs with lerp target
+  _setTargetScale = (s: number) => { targetScale = s; };
   // Cursor position for zoom anchoring
   let zoomCursorX = 0;
   let zoomCursorY = 0;

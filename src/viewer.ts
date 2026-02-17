@@ -10,6 +10,13 @@ import {
   getOverlayContainer,
 } from './state';
 
+export interface ViewerData {
+  filePath: string;
+  fileName: string;
+}
+
+const viewerData = new Map<string, ViewerData>();
+
 const BORDER_WIDTH = 2;
 const CORNER_RADIUS = 8;
 const BORDER_DEFAULT = '#0f3460';
@@ -158,6 +165,8 @@ export async function createViewerNode(
     overlay.style.zIndex = `${getAllNodes().length + 1}`;
   });
 
+  viewerData.set(id, { filePath, fileName });
+
   registerNode({
     id,
     type: 'viewer',
@@ -168,8 +177,13 @@ export async function createViewerNode(
   });
 }
 
-function destroyViewerNode(id: string) {
+export function getViewerData(id: string): ViewerData | undefined {
+  return viewerData.get(id);
+}
+
+export function destroyViewerNode(id: string) {
   const entry = getNode(id);
   if (entry) entry.overlay.remove();
+  viewerData.delete(id);
   unregisterNode(id);
 }

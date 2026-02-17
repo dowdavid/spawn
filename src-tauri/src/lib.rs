@@ -1,6 +1,7 @@
 mod pty;
 mod project;
 mod watcher;
+mod workspace;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,6 +19,8 @@ pub fn run() {
             project::open_file_in_system,
             watcher::watch_directory,
             watcher::unwatch_directory,
+            workspace::save_workspace,
+            workspace::load_workspace,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
