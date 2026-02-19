@@ -5,7 +5,6 @@ import {
   unregisterNode,
   getNode,
   setActiveNodeId,
-  getActiveNodeId,
   getAllNodes,
   getOverlayContainer,
 } from './state';
