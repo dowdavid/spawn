@@ -1,10 +1,14 @@
 import type { Graphics, Container } from 'pixi.js';
+import { Webview } from '@tauri-apps/api/webview';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { LogicalPosition, LogicalSize } from '@tauri-apps/api/dpi';
 import { TITLE_BAR_HEIGHT } from './node';
 import {
   registerNode,
   unregisterNode,
   getNode,
   setActiveNodeId,
+  getActiveNodeId,
   getAllNodes,
   getOverlayContainer,
 } from './state';
@@ -21,6 +25,7 @@ export interface BrowserData {
 }
 
 const browserData = new Map<string, BrowserData>();
+const webviews = new Map<string, Webview>();
 
 const BORDER_WIDTH = 2;
 const CORNER_RADIUS = 8;
@@ -232,6 +237,57 @@ export async function createBrowserNode(
     width: nodeWidth,
     height: nodeHeight,
   });
+
+  const data = browserData.get(id)!;
+  if (url) {
+    try {
+      const webview = createWebviewForNode(id, url, nodeWidth, nodeHeight - TITLE_BAR_HEIGHT);
+      webviews.set(id, webview);
+      webview.once('tauri://created', () => {
+        webview.hide();
+      });
+      data.statusText.textContent = '';
+    } catch (e) {
+      console.warn('Failed to create webview:', e);
+      if (url.includes('localhost') || url.includes('127.0.0.1')) {
+        data.statusText.textContent = 'Waiting for server...';
+      } else {
+        data.statusText.textContent = 'Failed to load page';
+      }
+    }
+  }
+}
+
+let webviewCounter = 0;
+
+function createWebviewForNode(id: string, url: string, width: number, height: number): Webview {
+  const label = `browser-${id.replace(/[^a-zA-Z0-9-_]/g, '-')}-${webviewCounter++}`;
+  const webview = new Webview(getCurrentWindow(), label, {
+    url,
+    x: 0, y: 0,
+    width,
+    height,
+  });
+  return webview;
+}
+
+function replaceWebview(id: string, url: string, width: number, height: number, data: BrowserData): void {
+  const existing = webviews.get(id);
+  if (existing) {
+    existing.close().catch(() => {});
+    webviews.delete(id);
+  }
+  try {
+    const webview = createWebviewForNode(id, url, width, height);
+    webviews.set(id, webview);
+    webview.once('tauri://created', () => {
+      webview.hide();
+      data.statusText.textContent = '';
+    });
+  } catch (e) {
+    console.warn('Failed to create webview:', e);
+    data.statusText.textContent = 'Failed to create webview';
+  }
 }
 
 function commitUrl(id: string, newUrl: string): void {
@@ -241,19 +297,27 @@ function commitUrl(id: string, newUrl: string): void {
   data.urlLabel.textContent = newUrl || 'Enter URL...';
   data.urlLabel.style.color = newUrl ? '#8899aa' : '#4a5568';
   data.urlInput.value = newUrl;
+
   if (newUrl) {
     data.statusText.textContent = 'Loading...';
-    // Webview navigation added in Task 6
+    replaceWebview(id, newUrl, 800, 600, data);
   } else {
     data.statusText.textContent = 'No URL — press Cmd+B or enter a URL above';
+    const existingWebview = webviews.get(id);
+    if (existingWebview) {
+      existingWebview.close();
+      webviews.delete(id);
+    }
   }
 }
 
 export function refreshBrowser(id: string): void {
   const data = browserData.get(id);
   if (!data || !data.url) return;
-  data.statusText.textContent = 'Refreshing...';
-  // Webview reload added in Task 6
+  const entry = getNode(id);
+  const width = entry?.width ?? 800;
+  const height = entry ? entry.height - TITLE_BAR_HEIGHT : 600;
+  replaceWebview(id, data.url, width, height, data);
 }
 
 export function setBrowserUrl(id: string, url: string): void {
@@ -294,12 +358,53 @@ export function destroyBrowserNode(id: string): void {
   detachResizeFrame(id);
   const entry = getNode(id);
   if (entry) entry.overlay.remove();
-  // Webview cleanup added in Task 6
+  const webview = webviews.get(id);
+  if (webview) {
+    webview.close();
+    webviews.delete(id);
+  }
   browserData.delete(id);
   unregisterNode(id);
 }
 
-// Webview sync — placeholder for Task 6
-export function syncBrowserWebviews(_world: Container): void {
-  // Will be implemented in Task 6 with Tauri child webviews
+const WEBVIEW_MIN_SCALE = 0.3;
+
+export function syncBrowserWebviews(world: Container): void {
+  const scale = world.scale.x;
+  const worldX = world.x;
+  const worldY = world.y;
+  const activeId = getActiveNodeId();
+
+  for (const [id, webview] of webviews) {
+    const entry = getNode(id);
+    if (!entry) continue;
+
+    const isActive = id === activeId;
+
+    // Hide webview when not active or zoomed out too far
+    if (!isActive || scale < WEBVIEW_MIN_SCALE) {
+      webview.hide().catch(() => {});
+      const data = browserData.get(id);
+      if (data && data.url && data.statusText.textContent === '') {
+        data.statusText.textContent = data.url;
+        data.statusText.style.color = '#4a5568';
+      }
+      continue;
+    }
+
+    // Active browser — position and show the webview
+    const screenX = entry.gfx.x * scale + worldX;
+    const screenY = entry.gfx.y * scale + worldY + TITLE_BAR_HEIGHT * scale;
+    const screenW = entry.width * scale;
+    const screenH = (entry.height - TITLE_BAR_HEIGHT) * scale;
+
+    webview.setPosition(new LogicalPosition(screenX, screenY)).catch(() => {});
+    webview.setSize(new LogicalSize(Math.max(1, screenW), Math.max(1, screenH))).catch(() => {});
+    webview.show().catch(() => {});
+
+    const data = browserData.get(id);
+    if (data && data.statusText.textContent === data.url) {
+      data.statusText.textContent = '';
+    }
+  }
 }
