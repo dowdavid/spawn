@@ -68,7 +68,8 @@ pub fn spawn_pty(
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
                     let _ = app.emit(&format!("pty-output-{}", event_id), &data);
 
-                    if let Some(url) = detect_dev_server_url(&data) {
+                    let clean = strip_ansi_escapes(&data);
+                    if let Some(url) = detect_dev_server_url(&clean) {
                         let is_new = last_detected_url.as_ref() != Some(&url);
                         if is_new {
                             last_detected_url = Some(url.clone());
@@ -143,6 +144,27 @@ pub fn kill_pty(
         let _ = session.child.kill();
     }
     Ok(())
+}
+
+fn strip_ansi_escapes(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            if let Some(next) = chars.next() {
+                if next == '[' {
+                    for c2 in chars.by_ref() {
+                        if c2.is_ascii_alphabetic() {
+                            break;
+                        }
+                    }
+                }
+            }
+        } else {
+            result.push(c);
+        }
+    }
+    result
 }
 
 fn detect_dev_server_url(data: &str) -> Option<String> {
