@@ -61,26 +61,14 @@ async function init() {
 
   const world = createCanvas(app);
 
-  // Restore saved workspace if one exists
-  try {
-    const json = await invoke<string | null>('load_workspace');
-    if (json) {
-      const state = JSON.parse(json);
-      await restoreWorkspaceState(state, world);
-      // Attach nodules and resize frames to all restored nodes
-      for (const entry of getAllNodes()) {
-        attachNodule(entry.id);
-        attachResizeFrame(entry.id);
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to restore workspace:', e);
-  }
-
   // Auto-spawn browser on dev server detection
-  window.addEventListener('register-terminal-listener', async (e) => {
+  // Registered BEFORE workspace restore so restored terminals get listeners too
+  const registeredTerminalListeners = new Set<string>();
+  window.addEventListener('register-terminal-listener', (e) => {
     const { terminalId } = (e as CustomEvent).detail;
-    await listen<string>(`dev-server-detected-${terminalId}`, async (event) => {
+    if (registeredTerminalListeners.has(terminalId)) return;
+    registeredTerminalListeners.add(terminalId);
+    listen<string>(`dev-server-detected-${terminalId}`, async (event) => {
       const url = event.payload;
       setTerminalDetectedUrl(terminalId, url);
 
@@ -99,8 +87,24 @@ async function init() {
         attachResizeFrame(handle.id);
         addConnection(handle.id, terminalId);
       }
-    });
+    }).catch((err) => console.warn('Failed to listen for dev-server-detected:', err));
   });
+
+  // Restore saved workspace if one exists
+  try {
+    const json = await invoke<string | null>('load_workspace');
+    if (json) {
+      const state = JSON.parse(json);
+      await restoreWorkspaceState(state, world);
+      // Attach nodules and resize frames to all restored nodes
+      for (const entry of getAllNodes()) {
+        attachNodule(entry.id);
+        attachResizeFrame(entry.id);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to restore workspace:', e);
+  }
 
   // Save workspace helper
   async function saveWorkspace() {
