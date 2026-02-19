@@ -2,9 +2,10 @@ import { Application, FederatedPointerEvent } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { createCanvas } from './canvas';
-import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT, VIEWER_WIDTH, VIEWER_HEIGHT } from './node';
+import { createNode, NODE_WIDTH, NODE_HEIGHT, PROJECT_WIDTH, PROJECT_HEIGHT, VIEWER_WIDTH, VIEWER_HEIGHT, BROWSER_WIDTH, BROWSER_HEIGHT } from './node';
 import {
   initOverlayContainer,
   getActiveNodeId,
@@ -26,6 +27,15 @@ import {
 } from './terminal';
 import { createProjectNode, destroyProjectNode, getProjectPath } from './project';
 import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
+import {
+  createBrowserNode,
+  destroyBrowserNode,
+  setActiveBrowserNode,
+  focusUrlInput,
+  getBrowserForTerminal,
+  setBrowserUrl,
+  syncBrowserWebviews,
+} from './browser';
 import { initConnectionLayer, syncConnections } from './connection';
 import { attachNodule, syncNoduleVisibility } from './nodule';
 import { attachResizeFrame, initResizeCursors } from './resize';
@@ -98,6 +108,7 @@ async function init() {
     syncOverlays(world);
     syncConnections(world);
     syncNoduleVisibility();
+    syncBrowserWebviews(world);
     requestAnimationFrame(syncLoop);
   }
   requestAnimationFrame(syncLoop);
@@ -131,6 +142,8 @@ async function init() {
         await destroyProjectNode(active);
       } else if (activeEntry.type === 'viewer') {
         destroyViewerNode(active);
+      } else if (activeEntry.type === 'browser') {
+        destroyBrowserNode(active);
       }
       const parent = gfx.parent;
       if (parent) parent.removeChild(gfx);
@@ -221,6 +234,39 @@ async function init() {
           const projectName = selected.split('/').pop() || selected;
           setTerminalProjectLabel(lastTermId!, projectName);
         }
+      }
+      return;
+    }
+
+    // Cmd+B — new browser node
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyB') {
+      e.preventDefault();
+
+      const termId = (activeEntry?.type === 'terminal' && active) ? active
+        : getLastActiveTerminalId();
+      const termNode = termId ? getNode(termId) : null;
+
+      if (termNode) {
+        // Position to the right of the terminal
+        const browserX = termNode.gfx.x + termNode.width + 50;
+        const browserY = termNode.gfx.y;
+        const handle = createNode(world, browserX, browserY);
+        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, '', termId);
+        attachNodule(handle.id);
+        attachResizeFrame(handle.id);
+        addConnection(handle.id, termId!);
+        setActiveBrowserNode(handle.id);
+        focusUrlInput(handle.id);
+      } else {
+        // No terminal — spawn disconnected at viewport center
+        const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - BROWSER_WIDTH / 2;
+        const viewY = (-world.y + window.innerHeight / 2) / world.scale.y - BROWSER_HEIGHT / 2;
+        const handle = createNode(world, viewX, viewY);
+        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT);
+        attachNodule(handle.id);
+        attachResizeFrame(handle.id);
+        setActiveBrowserNode(handle.id);
+        focusUrlInput(handle.id);
       }
       return;
     }
