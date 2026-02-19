@@ -186,7 +186,7 @@ function clearHighlight() {
   }
 }
 
-function connectNodes(sourceId: string, targetId: string) {
+async function connectNodes(sourceId: string, targetId: string) {
   addConnection(sourceId, targetId);
 
   const source = getNode(sourceId);
@@ -206,6 +206,17 @@ function connectNodes(sourceId: string, targetId: string) {
       const name = projPath.split('/').pop() || projPath;
       setTerminalProjectLabel(targetId, name);
     }
+  }
+
+  // If browser ↔ terminal, update browser's connectedTerminalId
+  if (source.type === 'browser' && target.type === 'terminal') {
+    const { getBrowserData } = await import('./browser');
+    const bd = getBrowserData(sourceId);
+    if (bd) bd.connectedTerminalId = targetId;
+  } else if (source.type === 'terminal' && target.type === 'browser') {
+    const { getBrowserData } = await import('./browser');
+    const bd = getBrowserData(targetId);
+    if (bd) bd.connectedTerminalId = sourceId;
   }
 }
 
