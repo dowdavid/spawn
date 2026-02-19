@@ -46,7 +46,7 @@ export function attachNodule(nodeId: string) {
     border-radius: 50%;
     background: ${color};
     cursor: crosshair;
-    z-index: 20;
+    z-index: 0;
     pointer-events: auto;
     box-shadow: 0 0 6px ${color}88;
     animation: nodule-pulse-${entry.type} 2s ease-in-out infinite;
@@ -236,5 +236,8 @@ export function syncNoduleVisibility() {
     const rect = entry.overlay.getBoundingClientRect();
     el.style.left = `${rect.right + 2}px`;
     el.style.top = `${rect.top + rect.height / 2 - NODULE_SIZE / 2}px`;
+
+    // Match the node's z-index so the nodule doesn't float above other nodes
+    el.style.zIndex = entry.overlay.style.zIndex || '0';
   }
 }

@@ -2,6 +2,7 @@ mod pty;
 mod project;
 mod watcher;
 mod workspace;
+mod browser_webview;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,6 +22,11 @@ pub fn run() {
             watcher::unwatch_directory,
             workspace::save_workspace,
             workspace::load_workspace,
+            browser_webview::create_child_webview,
+            browser_webview::set_child_webview_bounds,
+            browser_webview::show_child_webview,
+            browser_webview::hide_child_webview,
+            browser_webview::close_child_webview,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
