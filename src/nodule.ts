@@ -131,7 +131,7 @@ function startDrag(sourceId: string) {
     if (dragging && dragSourceId) {
       const targetId = hitTestNode(e.clientX, e.clientY, dragSourceId);
       if (targetId) {
-        connectNodes(dragSourceId, targetId);
+        connectNodes(dragSourceId, targetId).catch(console.warn);
       }
     }
 
