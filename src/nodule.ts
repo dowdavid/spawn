@@ -22,7 +22,7 @@ const VALID_TARGETS: Record<NodeType, NodeType[]> = {
   browser: ['terminal'],
 };
 
-const NODULE_SIZE = 12;
+const NODULE_SIZE = 14;
 
 // Drag state
 let dragging = false;

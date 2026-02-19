@@ -59,8 +59,8 @@ export async function createViewerNode(
     border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
     display:flex;
     align-items:center;
-    padding:0 8px;
-    gap:6px;
+    padding:0 10px;
+    gap:8px;
   `;
 
   // Drag grip
@@ -73,12 +73,12 @@ export async function createViewerNode(
   const docIcon = document.createElement('div');
   docIcon.className = 'node-type-icon';
   docIcon.style.cssText = 'display:flex;align-items:center;';
-  docIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 13h-2"/><path d="M10 17H8"/><path d="M16 17h-2"/></svg>`;
+  docIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 13h-2"/><path d="M10 17H8"/><path d="M16 17h-2"/></svg>`;
   titleBar.appendChild(docIcon);
 
   // File name label
   const titleLabel = document.createElement('div');
-  titleLabel.style.cssText = 'flex:1;color:#8899aa;font-family:Menlo,Monaco,monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  titleLabel.style.cssText = 'flex:1;color:#8899aa;font-family:Menlo,Monaco,monospace;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
   titleLabel.textContent = fileName;
   titleBar.appendChild(titleLabel);
 
@@ -103,7 +103,7 @@ export async function createViewerNode(
     width:100%;
     height:calc(100% - ${TITLE_BAR_HEIGHT}px);
     overflow:auto;
-    padding:12px;
+    padding:16px;
     box-sizing:border-box;
   `;
   overlay.appendChild(codeContainer);
@@ -115,7 +115,7 @@ export async function createViewerNode(
     pre.style.cssText = `
       margin:0;
       font-family:Menlo,Monaco,"Courier New",monospace;
-      font-size:13px;
+      font-size:15px;
       color:#e0e0e0;
       line-height:1.5;
       white-space:pre;
@@ -124,7 +124,7 @@ export async function createViewerNode(
     pre.textContent = contents;
     codeContainer.appendChild(pre);
   } catch {
-    codeContainer.style.cssText += 'color:#e94560;font-size:12px;font-family:Menlo,monospace;';
+    codeContainer.style.cssText += 'color:#e94560;font-size:14px;font-family:Menlo,monospace;';
     codeContainer.textContent = 'Failed to read file';
   }
 

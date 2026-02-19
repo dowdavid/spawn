@@ -81,8 +81,8 @@ export async function createBrowserNode(
     border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
     display:flex;
     align-items:center;
-    padding:0 8px;
-    gap:4px;
+    padding:0 10px;
+    gap:6px;
     position:relative;
     z-index:1;
   `;
@@ -97,7 +97,7 @@ export async function createBrowserNode(
   const typeIcon = document.createElement('div');
   typeIcon.className = 'node-type-icon';
   typeIcon.style.cssText = 'display:flex;align-items:center;';
-  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
+  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`;
   titleBar.appendChild(typeIcon);
 
   // URL input — always visible and editable
@@ -105,7 +105,7 @@ export async function createBrowserNode(
   urlInput.type = 'text';
   urlInput.value = url;
   urlInput.placeholder = 'Enter URL';
-  urlInput.style.cssText = 'flex:1;background:#0a1628;border:1px solid #1a3a5c;border-radius:4px;color:#e0e8f0;font-family:Menlo,Monaco,monospace;font-size:11px;padding:3px 8px;outline:none;min-width:0;';
+  urlInput.style.cssText = 'flex:1;background:#0a1628;border:1px solid #1a3a5c;border-radius:4px;color:#e0e8f0;font-family:Menlo,Monaco,monospace;font-size:14px;padding:4px 10px;outline:none;min-width:0;';
   titleBar.appendChild(urlInput);
 
   // Hidden label used by BrowserData interface (not displayed)
@@ -139,7 +139,7 @@ export async function createBrowserNode(
   // Refresh button
   const refreshBtn = document.createElement('div');
   refreshBtn.style.cssText = 'display:flex;align-items:center;cursor:pointer;padding:2px;border-radius:4px;flex-shrink:0;';
-  refreshBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>`;
+  refreshBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>`;
   refreshBtn.addEventListener('mouseenter', () => { refreshBtn.querySelector('svg')!.style.stroke = ACCENT_COLOR; });
   refreshBtn.addEventListener('mouseleave', () => { refreshBtn.querySelector('svg')!.style.stroke = '#4a5568'; });
   refreshBtn.addEventListener('mousedown', (e) => {
@@ -180,7 +180,7 @@ export async function createBrowserNode(
 
   // Status text
   const statusText = document.createElement('div');
-  statusText.style.cssText = 'color:#4a5568;font-family:Menlo,Monaco,monospace;font-size:13px;text-align:center;padding:20px;';
+  statusText.style.cssText = 'color:#4a5568;font-family:Menlo,Monaco,monospace;font-size:15px;text-align:center;padding:24px;';
   statusText.textContent = url ? '' : 'No URL — press Cmd+B or enter a URL above';
   contentArea.appendChild(statusText);
 
@@ -312,14 +312,14 @@ function loadUrl(id: string, url: string): void {
   } else {
     // External URL — show info with "Open in Browser" button
     const fallback = document.createElement('div');
-    fallback.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:14px;padding:30px;width:100%;';
+    fallback.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:16px;padding:30px;width:100%;';
 
     const icon = document.createElement('div');
     icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>`;
     fallback.appendChild(icon);
 
     const msg = document.createElement('div');
-    msg.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;text-align:center;max-width:280px;line-height:1.5;';
+    msg.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:13px;text-align:center;max-width:300px;line-height:1.5;';
     msg.textContent = 'External sites block iframe embedding. Localhost URLs (dev servers) load directly in the node.';
     fallback.appendChild(msg);
 
@@ -327,7 +327,7 @@ function loadUrl(id: string, url: string): void {
     openBtn.textContent = 'Open in System Browser';
     openBtn.style.cssText = `
       background:${ACCENT_COLOR};color:#000;border:none;border-radius:6px;
-      padding:8px 20px;font-family:Menlo,Monaco,monospace;font-size:12px;
+      padding:10px 22px;font-family:Menlo,Monaco,monospace;font-size:14px;
       font-weight:600;cursor:pointer;transition:opacity 0.15s;
     `;
     openBtn.addEventListener('mouseenter', () => { openBtn.style.opacity = '0.85'; });
@@ -341,7 +341,7 @@ function loadUrl(id: string, url: string): void {
     fallback.appendChild(openBtn);
 
     const urlHint = document.createElement('div');
-    urlHint.style.cssText = 'color:#3a4a5a;font-family:Menlo,Monaco,monospace;font-size:10px;word-break:break-all;text-align:center;max-width:280px;';
+    urlHint.style.cssText = 'color:#3a4a5a;font-family:Menlo,Monaco,monospace;font-size:12px;word-break:break-all;text-align:center;max-width:300px;';
     urlHint.textContent = url;
     fallback.appendChild(urlHint);
 

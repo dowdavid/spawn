@@ -93,7 +93,7 @@ export async function createTerminalNode(
     border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
     display:flex;
     align-items:center;
-    padding:0 8px;
+    padding:0 10px;
   `;
   // Drag grip icon (left)
   const gripIcon = document.createElement('div');
@@ -105,12 +105,12 @@ export async function createTerminalNode(
   const typeIcon = document.createElement('div');
   typeIcon.className = 'node-type-icon';
   typeIcon.style.cssText = 'display:flex;align-items:center;padding-left:2px;';
-  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>`;
+  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>`;
   titleBar.appendChild(typeIcon);
 
   // Title label (shows project name if connected)
   const titleLabel = document.createElement('div');
-  titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:4px;';
+  titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;';
   if (connectedProjectPath) {
     titleLabel.textContent = connectedProjectPath.split('/').pop() || connectedProjectPath;
   }
@@ -143,7 +143,7 @@ export async function createTerminalNode(
     width:100%;
     height:calc(100% - ${TITLE_BAR_HEIGHT}px);
     overflow:hidden;
-    padding:6px 0px 12px 12px;
+    padding:8px 0px 14px 14px;
     box-sizing:border-box;
   `;
   overlay.appendChild(termPadding);
@@ -165,7 +165,7 @@ export async function createTerminalNode(
       selectionBackground: '#0f346080',
     },
     fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-    fontSize: 14,
+    fontSize: 15,
     allowProposedApi: true,
     cursorBlink: true,
   });
