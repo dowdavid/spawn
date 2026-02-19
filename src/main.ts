@@ -15,6 +15,7 @@ import {
   getNodesByType,
   getLastActiveTerminalId,
   addConnection,
+  getConnectionsForNode,
   type NodeEntry,
 } from './state';
 import {
@@ -35,6 +36,7 @@ import {
   setActiveBrowserNode,
   focusUrlInput,
   getBrowserForTerminal,
+  getBrowserData,
   setBrowserUrl,
   syncBrowserWebviews,
 } from './browser';
@@ -76,16 +78,26 @@ async function init() {
       if (existingBrowserId) {
         setBrowserUrl(existingBrowserId, url);
       } else {
-        const termNode = getNode(terminalId);
-        if (!termNode) return;
+        // Push to any unconnected browser node
+        const emptyBrowser = findUnconnectedBrowser();
+        if (emptyBrowser) {
+          const bd = getBrowserData(emptyBrowser);
+          if (bd) bd.connectedTerminalId = terminalId;
+          addConnection(emptyBrowser, terminalId);
+          setBrowserUrl(emptyBrowser, url);
+        } else {
+          // No browser at all — auto-spawn one next to the terminal
+          const termNode = getNode(terminalId);
+          if (!termNode) return;
 
-        const browserX = termNode.gfx.x + termNode.width + 50;
-        const browserY = termNode.gfx.y;
-        const handle = createNode(world, browserX, browserY);
-        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, url, terminalId);
-        attachNodule(handle.id);
-        attachResizeFrame(handle.id);
-        addConnection(handle.id, terminalId);
+          const browserX = termNode.gfx.x + termNode.width + 50;
+          const browserY = termNode.gfx.y;
+          const handle = createNode(world, browserX, browserY);
+          await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, url, terminalId);
+          attachNodule(handle.id);
+          attachResizeFrame(handle.id);
+          addConnection(handle.id, terminalId);
+        }
       }
     }).catch((err) => console.warn('Failed to listen for dev-server-detected:', err));
   });
@@ -233,19 +245,27 @@ async function init() {
         attachResizeFrame(handle.id);
         addConnection(handle.id, projectNode.id);
         setActiveNode(handle.id);
+        await autoConnectBrowser(handle.id);
       } else {
-        // No projects — stack from last terminal or use viewport center
-        const viewX = lastTerm
-          ? lastTerm.gfx.x + 40
-          : (-world.x + window.innerWidth / 2) / world.scale.x - NODE_WIDTH / 2;
-        const viewY = lastTerm
-          ? lastTerm.gfx.y + 40
-          : (-world.y + window.innerHeight / 2) / world.scale.y - NODE_HEIGHT / 2;
+        // No projects — position left of existing browser, or stack from last terminal, or viewport center
+        const emptyBrowserEntry = findEmptyBrowser() ? getNode(findEmptyBrowser()!) : null;
+        let viewX: number, viewY: number;
+        if (emptyBrowserEntry) {
+          viewX = emptyBrowserEntry.gfx.x - NODE_WIDTH - 50;
+          viewY = emptyBrowserEntry.gfx.y;
+        } else if (lastTerm) {
+          viewX = lastTerm.gfx.x + 40;
+          viewY = lastTerm.gfx.y + 40;
+        } else {
+          viewX = (-world.x + window.innerWidth / 2) / world.scale.x - NODE_WIDTH / 2;
+          viewY = (-world.y + window.innerHeight / 2) / world.scale.y - NODE_HEIGHT / 2;
+        }
         const handle = createNode(world, viewX, viewY);
         await createTerminalNode(handle.id, handle.gfx, NODE_WIDTH, NODE_HEIGHT);
         attachNodule(handle.id);
         attachResizeFrame(handle.id);
         setActiveNode(handle.id);
+        await autoConnectBrowser(handle.id);
       }
       return;
     }
@@ -278,16 +298,47 @@ async function init() {
       return;
     }
 
-    // Cmd+B — new browser node
+    // Cmd+Shift+B — new disconnected browser (check BEFORE Cmd+B)
+    if (e.metaKey && e.shiftKey && e.code === 'KeyB') {
+      e.preventDefault();
+      const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - BROWSER_WIDTH / 2;
+      const viewY = (-world.y + window.innerHeight / 2) / world.scale.y - BROWSER_HEIGHT / 2;
+      const handle = createNode(world, viewX, viewY);
+      await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT);
+      attachNodule(handle.id);
+      attachResizeFrame(handle.id);
+      setActiveBrowserNode(handle.id);
+      focusUrlInput(handle.id);
+      return;
+    }
+
+    // Cmd+B — new browser node paired with a terminal (auto-starts dev server if needed)
     if (e.metaKey && !e.shiftKey && e.code === 'KeyB') {
       e.preventDefault();
 
-      const termId = (activeEntry?.type === 'terminal' && active) ? active
-        : getLastActiveTerminalId();
-      const termNode = termId ? getNode(termId) : null;
+      // Find a terminal that doesn't already have a browser
+      const target = findTerminalWithoutBrowser();
+      const termId = target?.termId ?? null;
+      const termNode = target?.node ?? null;
 
-      if (termNode) {
-        const detectedUrl = termId ? (getTerminalDetectedUrl(termId) || '') : '';
+      // Find a dev server URL from the target terminal or any terminal
+      let detectedUrl = termId ? (getTerminalDetectedUrl(termId) || '') : '';
+      if (!detectedUrl) {
+        for (const t of getNodesByType('terminal')) {
+          const url = getTerminalDetectedUrl(t.id);
+          if (url) { detectedUrl = url; break; }
+        }
+      }
+
+      // No dev server running — try to auto-start one
+      if (!detectedUrl && termId) {
+        const devCmd = await detectDevCommand(termId);
+        if (devCmd) {
+          invoke('write_pty', { id: termId, data: devCmd + '\n' }).catch(() => {});
+        }
+      }
+
+      if (termNode && termId) {
         // Position to the right of the terminal
         const browserX = termNode.gfx.x + termNode.width + 50;
         const browserY = termNode.gfx.y;
@@ -295,19 +346,26 @@ async function init() {
         await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, detectedUrl, termId);
         attachNodule(handle.id);
         attachResizeFrame(handle.id);
-        addConnection(handle.id, termId!);
+        addConnection(handle.id, termId);
         setActiveBrowserNode(handle.id);
-        if (!detectedUrl) focusUrlInput(handle.id);
       } else {
-        // No terminal — spawn disconnected at viewport center
-        const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - BROWSER_WIDTH / 2;
-        const viewY = (-world.y + window.innerHeight / 2) / world.scale.y - BROWSER_HEIGHT / 2;
+        // No available terminal — position right of project or viewport center
+        const projects = getNodesByType('project');
+        let viewX: number, viewY: number;
+        if (projects.length > 0) {
+          const p = projects[0];
+          viewX = p.gfx.x + p.width + NODE_WIDTH + 100;
+          viewY = p.gfx.y;
+        } else {
+          viewX = (-world.x + window.innerWidth / 2) / world.scale.x - BROWSER_WIDTH / 2;
+          viewY = (-world.y + window.innerHeight / 2) / world.scale.y - BROWSER_HEIGHT / 2;
+        }
         const handle = createNode(world, viewX, viewY);
-        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT);
+        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, detectedUrl);
         attachNodule(handle.id);
         attachResizeFrame(handle.id);
         setActiveBrowserNode(handle.id);
-        focusUrlInput(handle.id);
+        if (!detectedUrl) focusUrlInput(handle.id);
       }
       return;
     }
@@ -339,6 +397,112 @@ async function init() {
       addConnection(handle.id, projectNode.id);
     }
   });
+}
+
+/**
+ * Detect the dev server command for a terminal by inspecting its connected project.
+ * Checks package.json for common dev scripts (dev, start, serve).
+ */
+async function detectDevCommand(termId: string): Promise<string | null> {
+  // Find a project connected to this terminal
+  const conns = getConnectionsForNode(termId);
+  let projectPath: string | null = null;
+  for (const conn of conns) {
+    const otherId = conn.sourceId === termId ? conn.targetId : conn.sourceId;
+    const other = getNode(otherId);
+    if (other?.type === 'project') {
+      projectPath = getProjectPath(otherId) || null;
+      break;
+    }
+  }
+  if (!projectPath) {
+    // No connected project — check if there's only one project node
+    const projects = getNodesByType('project');
+    if (projects.length === 1) {
+      projectPath = getProjectPath(projects[0].id) || null;
+    }
+  }
+  if (!projectPath) return null;
+
+  // Check for package.json
+  try {
+    const raw = await invoke<string>('read_file_contents', { path: `${projectPath}/package.json` });
+    const pkg = JSON.parse(raw);
+    const scripts = pkg.scripts || {};
+    if (scripts.dev) return 'npm run dev';
+    if (scripts.start) return 'npm run start';
+    if (scripts.serve) return 'npm run serve';
+  } catch { /* no package.json or invalid */ }
+
+  return null;
+}
+
+/**
+ * Auto-connect a newly created terminal to an existing unconnected browser.
+ * Repositions the browser to the right of the terminal and kicks off dev server.
+ */
+async function autoConnectBrowser(termId: string): Promise<void> {
+  // Skip if this terminal already has a browser
+  if (getBrowserForTerminal(termId)) return;
+
+  const emptyBrowserId = findUnconnectedBrowser();
+  if (!emptyBrowserId) return;
+
+  const bd = getBrowserData(emptyBrowserId);
+  if (!bd) return;
+
+  const termNode = getNode(termId);
+  const browserNode = getNode(emptyBrowserId);
+
+  // Reposition browser to the right of the terminal
+  if (termNode && browserNode) {
+    browserNode.gfx.x = termNode.gfx.x + termNode.width + 50;
+    browserNode.gfx.y = termNode.gfx.y;
+  }
+
+  // Wire the connection
+  bd.connectedTerminalId = termId;
+  addConnection(emptyBrowserId, termId);
+
+  // Try to auto-start dev server
+  const devCmd = await detectDevCommand(termId);
+  if (devCmd) {
+    invoke('write_pty', { id: termId, data: devCmd + '\n' }).catch(() => {});
+  }
+}
+
+/** Find a browser node that isn't connected to any terminal. */
+function findUnconnectedBrowser(): string | null {
+  for (const entry of getNodesByType('browser')) {
+    const data = getBrowserData(entry.id);
+    if (data && !data.connectedTerminalId) return entry.id;
+  }
+  return null;
+}
+
+/** Find the first terminal that doesn't already have a browser connected. */
+function findTerminalWithoutBrowser(): { termId: string; node: NodeEntry } | null {
+  // Prefer active terminal, then last-active, then any
+  const activeId = getActiveNodeId();
+  const activeEntry = activeId ? getNode(activeId) : null;
+  if (activeEntry?.type === 'terminal' && !getBrowserForTerminal(activeId!)) {
+    return { termId: activeId!, node: activeEntry };
+  }
+
+  const lastId = getLastActiveTerminalId();
+  if (lastId) {
+    const lastNode = getNode(lastId);
+    if (lastNode && !getBrowserForTerminal(lastId)) {
+      return { termId: lastId, node: lastNode };
+    }
+  }
+
+  for (const entry of getNodesByType('terminal')) {
+    if (!getBrowserForTerminal(entry.id)) {
+      return { termId: entry.id, node: entry };
+    }
+  }
+  return null;
 }
 
 function findTargetProject(world: Container): NodeEntry | null {

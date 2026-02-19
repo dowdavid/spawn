@@ -181,7 +181,7 @@ export async function createBrowserNode(
   // Status text
   const statusText = document.createElement('div');
   statusText.style.cssText = 'color:#4a5568;font-family:Menlo,Monaco,monospace;font-size:15px;text-align:center;padding:24px;';
-  statusText.textContent = url ? '' : 'No URL — press Cmd+B or enter a URL above';
+  statusText.textContent = url ? '' : connectedTerminalId ? 'Starting dev server...' : 'No URL — enter a URL above';
   contentArea.appendChild(statusText);
 
   // Title bar drag

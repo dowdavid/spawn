@@ -208,16 +208,52 @@ async function connectNodes(sourceId: string, targetId: string) {
     }
   }
 
-  // If browser ↔ terminal, update browser's connectedTerminalId
+  // If browser ↔ terminal, update browser's connectedTerminalId and auto-wire dev server
   if (source.type === 'browser' && target.type === 'terminal') {
-    const { getBrowserData } = await import('./browser');
-    const bd = getBrowserData(sourceId);
-    if (bd) bd.connectedTerminalId = targetId;
+    await wireBrowserTerminal(sourceId, targetId);
   } else if (source.type === 'terminal' && target.type === 'browser') {
-    const { getBrowserData } = await import('./browser');
-    const bd = getBrowserData(targetId);
-    if (bd) bd.connectedTerminalId = sourceId;
+    await wireBrowserTerminal(targetId, sourceId);
   }
+}
+
+async function wireBrowserTerminal(browserId: string, terminalId: string) {
+  const { getBrowserData, setBrowserUrl } = await import('./browser');
+  const { getTerminalDetectedUrl } = await import('./terminal');
+  const { invoke } = await import('@tauri-apps/api/core');
+
+  const bd = getBrowserData(browserId);
+  if (bd) bd.connectedTerminalId = terminalId;
+
+  // If the terminal already has a detected URL, push it to the browser
+  const detectedUrl = getTerminalDetectedUrl(terminalId);
+  if (detectedUrl) {
+    if (bd && !bd.url) setBrowserUrl(browserId, detectedUrl);
+    return;
+  }
+
+  // No URL yet — try to auto-start a dev server
+  // Find a project connected to this terminal
+  const conns = getConnectionsForNode(terminalId);
+  let projectPath: string | null = null;
+  for (const conn of conns) {
+    const otherId = conn.sourceId === terminalId ? conn.targetId : conn.sourceId;
+    const other = getNode(otherId);
+    if (other?.type === 'project') {
+      projectPath = (await import('./project')).getProjectPath(otherId) || null;
+      break;
+    }
+  }
+  if (!projectPath) return;
+
+  try {
+    const raw = await invoke<string>('read_file_contents', { path: `${projectPath}/package.json` });
+    const pkg = JSON.parse(raw);
+    const scripts = pkg.scripts || {};
+    const cmd = scripts.dev ? 'npm run dev' : scripts.start ? 'npm run start' : scripts.serve ? 'npm run serve' : null;
+    if (cmd) {
+      invoke('write_pty', { id: terminalId, data: cmd + '\n' }).catch(() => {});
+    }
+  } catch { /* no package.json */ }
 }
 
 export function syncNoduleVisibility() {
