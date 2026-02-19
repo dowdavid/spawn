@@ -9,6 +9,7 @@ import { createNodeWithId } from './node';
 import { createTerminalNode, getTerminalData, setActiveNode } from './terminal';
 import { createProjectNode, getProjectPath, getExpandedFolders } from './project';
 import { createViewerNode, getViewerData } from './viewer';
+import { createBrowserNode, getBrowserData } from './browser';
 import { setTargetScale } from './canvas';
 
 // --- Serialized types ---
@@ -28,6 +29,11 @@ interface SerializedViewer {
   fileName: string;
 }
 
+interface SerializedBrowser {
+  url: string;
+  connectedTerminalId: string | null;
+}
+
 interface SerializedNode {
   id: string;
   type: 'terminal' | 'project' | 'viewer' | 'browser';
@@ -38,6 +44,7 @@ interface SerializedNode {
   terminal?: SerializedTerminal;
   project?: SerializedProject;
   viewer?: SerializedViewer;
+  browser?: SerializedBrowser;
 }
 
 interface SerializedConnection {
@@ -90,6 +97,14 @@ export function gatherWorkspaceState(world: Container): WorkspaceState {
       if (vd) {
         base.viewer = { filePath: vd.filePath, fileName: vd.fileName };
       }
+    } else if (entry.type === 'browser') {
+      const bd = getBrowserData(entry.id);
+      if (bd) {
+        base.browser = {
+          url: bd.url,
+          connectedTerminalId: bd.connectedTerminalId,
+        };
+      }
     }
 
     nodes.push(base);
@@ -129,6 +144,7 @@ export async function restoreWorkspaceState(
   const projectNodes = state.nodes.filter((n) => n.type === 'project');
   const terminalNodes = state.nodes.filter((n) => n.type === 'terminal');
   const viewerNodes = state.nodes.filter((n) => n.type === 'viewer');
+  const browserNodes = state.nodes.filter((n) => n.type === 'browser');
 
   // Restore projects
   for (const n of projectNodes) {
@@ -168,6 +184,20 @@ export async function restoreWorkspaceState(
       n.height,
       n.viewer.filePath,
       n.viewer.fileName,
+    );
+  }
+
+  // Restore browsers
+  for (const n of browserNodes) {
+    if (!n.browser) continue;
+    const handle = createNodeWithId(world, n.x, n.y, n.id);
+    await createBrowserNode(
+      handle.id,
+      handle.gfx,
+      n.width,
+      n.height,
+      n.browser.url,
+      n.browser.connectedTerminalId,
     );
   }
 
