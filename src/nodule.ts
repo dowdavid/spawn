@@ -11,13 +11,15 @@ const NODULE_COLORS: Record<NodeType, string> = {
   terminal: '#e94560',
   project: '#a78bfa',
   viewer: '#34d399',
+  browser: '#f59e0b',
 };
 
 // Valid connection pairs: source type → allowed target types
 const VALID_TARGETS: Record<NodeType, NodeType[]> = {
-  terminal: ['project'],
+  terminal: ['project', 'browser'],
   project: ['terminal'],
   viewer: ['project'],
+  browser: ['terminal'],
 };
 
 const NODULE_SIZE = 12;

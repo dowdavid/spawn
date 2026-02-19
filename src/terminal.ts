@@ -37,6 +37,7 @@ const FOCUSED_BORDER_COLORS: Record<string, string> = {
   terminal: '#e94560',
   project: '#a78bfa',
   viewer: '#34d399',
+  browser: '#f59e0b',
 };
 
 const terminalData = new Map<string, TerminalNodeData>();

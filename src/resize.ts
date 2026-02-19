@@ -5,9 +5,11 @@ import {
   NODE_WIDTH, NODE_HEIGHT,
   PROJECT_WIDTH, PROJECT_HEIGHT,
   VIEWER_WIDTH, VIEWER_HEIGHT,
+  BROWSER_WIDTH, BROWSER_HEIGHT,
   MIN_NODE_WIDTH, MIN_NODE_HEIGHT,
   MIN_PROJECT_WIDTH, MIN_PROJECT_HEIGHT,
   MIN_VIEWER_WIDTH, MIN_VIEWER_HEIGHT,
+  MIN_BROWSER_WIDTH, MIN_BROWSER_HEIGHT,
 } from './node';
 import { refitTerminal } from './terminal';
 import { getCurrentWindow, type CursorIcon } from '@tauri-apps/api/window';
@@ -20,12 +22,14 @@ const DEFAULT_SIZES: Record<NodeType, { w: number; h: number }> = {
   terminal: { w: NODE_WIDTH, h: NODE_HEIGHT },
   project: { w: PROJECT_WIDTH, h: PROJECT_HEIGHT },
   viewer: { w: VIEWER_WIDTH, h: VIEWER_HEIGHT },
+  browser: { w: BROWSER_WIDTH, h: BROWSER_HEIGHT },
 };
 
 const MIN_SIZES: Record<NodeType, { w: number; h: number }> = {
   terminal: { w: MIN_NODE_WIDTH, h: MIN_NODE_HEIGHT },
   project: { w: MIN_PROJECT_WIDTH, h: MIN_PROJECT_HEIGHT },
   viewer: { w: MIN_VIEWER_WIDTH, h: MIN_VIEWER_HEIGHT },
+  browser: { w: MIN_BROWSER_WIDTH, h: MIN_BROWSER_HEIGHT },
 };
 
 type Zone = 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';

@@ -1,7 +1,7 @@
 // src/state.ts
 import type { Graphics, Container } from 'pixi.js';
 
-export type NodeType = 'terminal' | 'project' | 'viewer';
+export type NodeType = 'terminal' | 'project' | 'viewer' | 'browser';
 
 export interface NodeEntry {
   id: string;

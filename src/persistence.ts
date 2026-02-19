@@ -30,7 +30,7 @@ interface SerializedViewer {
 
 interface SerializedNode {
   id: string;
-  type: 'terminal' | 'project' | 'viewer';
+  type: 'terminal' | 'project' | 'viewer' | 'browser';
   x: number;
   y: number;
   width: number;
