@@ -156,7 +156,7 @@ export async function createBrowserNode(
 
   overlay.appendChild(titleBar);
 
-  // Content area — placeholder for now, webview added in Task 6
+  // Content area
   const contentArea = document.createElement('div');
   contentArea.style.cssText = `
     width:100%;
@@ -300,12 +300,15 @@ function commitUrl(id: string, newUrl: string): void {
 
   if (newUrl) {
     data.statusText.textContent = 'Loading...';
-    replaceWebview(id, newUrl, 800, 600, data);
+    const entry = getNode(id);
+    const width = entry?.width ?? 800;
+    const height = entry ? entry.height - TITLE_BAR_HEIGHT : 600;
+    replaceWebview(id, newUrl, width, height, data);
   } else {
     data.statusText.textContent = 'No URL — press Cmd+B or enter a URL above';
     const existingWebview = webviews.get(id);
     if (existingWebview) {
-      existingWebview.close();
+      existingWebview.close().catch(() => {});
       webviews.delete(id);
     }
   }
@@ -360,7 +363,7 @@ export function destroyBrowserNode(id: string): void {
   if (entry) entry.overlay.remove();
   const webview = webviews.get(id);
   if (webview) {
-    webview.close();
+    webview.close().catch(() => {});
     webviews.delete(id);
   }
   browserData.delete(id);
