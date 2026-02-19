@@ -22,6 +22,7 @@ export interface TerminalNodeData {
   cwd?: string;
   connectedProjectPath?: string;
   titleLabel: HTMLDivElement;
+  detectedUrl?: string;
 }
 
 const BORDER_WIDTH = 2;
@@ -47,6 +48,15 @@ export function refitTerminal(id: string): void {
   if (!data) return;
   data.fitAddon.fit();
   invoke('resize_pty', { id, cols: data.terminal.cols, rows: data.terminal.rows }).catch(() => {});
+}
+
+export function getTerminalDetectedUrl(id: string): string | undefined {
+  return terminalData.get(id)?.detectedUrl;
+}
+
+export function setTerminalDetectedUrl(id: string, url: string): void {
+  const data = terminalData.get(id);
+  if (data) data.detectedUrl = url;
 }
 
 export async function createTerminalNode(
@@ -252,6 +262,10 @@ export async function createTerminalNode(
 
   // Store terminal-specific data locally
   terminalData.set(id, { terminal, fitAddon, unlisten, cwd, connectedProjectPath, titleLabel });
+
+  window.dispatchEvent(new CustomEvent('register-terminal-listener', {
+    detail: { terminalId: id },
+  }));
 }
 
 export function setActiveNode(id: string | null) {

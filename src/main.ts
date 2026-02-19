@@ -24,6 +24,8 @@ import {
   syncOverlays,
   blurAllTerminals,
   setTerminalProjectLabel,
+  setTerminalDetectedUrl,
+  getTerminalDetectedUrl,
 } from './terminal';
 import { createProjectNode, destroyProjectNode, getProjectPath } from './project';
 import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
@@ -74,6 +76,31 @@ async function init() {
   } catch (e) {
     console.warn('Failed to restore workspace:', e);
   }
+
+  // Auto-spawn browser on dev server detection
+  window.addEventListener('register-terminal-listener', async (e) => {
+    const { terminalId } = (e as CustomEvent).detail;
+    await listen<string>(`dev-server-detected-${terminalId}`, async (event) => {
+      const url = event.payload;
+      setTerminalDetectedUrl(terminalId, url);
+
+      const existingBrowserId = getBrowserForTerminal(terminalId);
+      if (existingBrowserId) {
+        setBrowserUrl(existingBrowserId, url);
+      } else {
+        const termNode = getNode(terminalId);
+        if (!termNode) return;
+
+        const browserX = termNode.gfx.x + termNode.width + 50;
+        const browserY = termNode.gfx.y;
+        const handle = createNode(world, browserX, browserY);
+        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, url, terminalId);
+        attachNodule(handle.id);
+        attachResizeFrame(handle.id);
+        addConnection(handle.id, terminalId);
+      }
+    });
+  });
 
   // Save workspace helper
   async function saveWorkspace() {
@@ -247,16 +274,17 @@ async function init() {
       const termNode = termId ? getNode(termId) : null;
 
       if (termNode) {
+        const detectedUrl = termId ? (getTerminalDetectedUrl(termId) || '') : '';
         // Position to the right of the terminal
         const browserX = termNode.gfx.x + termNode.width + 50;
         const browserY = termNode.gfx.y;
         const handle = createNode(world, browserX, browserY);
-        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, '', termId);
+        await createBrowserNode(handle.id, handle.gfx, BROWSER_WIDTH, BROWSER_HEIGHT, detectedUrl, termId);
         attachNodule(handle.id);
         attachResizeFrame(handle.id);
         addConnection(handle.id, termId!);
         setActiveBrowserNode(handle.id);
-        focusUrlInput(handle.id);
+        if (!detectedUrl) focusUrlInput(handle.id);
       } else {
         // No terminal — spawn disconnected at viewport center
         const viewX = (-world.x + window.innerWidth / 2) / world.scale.x - BROWSER_WIDTH / 2;
