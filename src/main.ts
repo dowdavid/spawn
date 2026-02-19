@@ -168,6 +168,15 @@ async function init() {
       if (!activeEntry || !active) return;
       const gfx = activeEntry.gfx;
       if (activeEntry.type === 'terminal') {
+        const connectedBrowserId = getBrowserForTerminal(active);
+        if (connectedBrowserId) {
+          const browserEntry = getNode(connectedBrowserId);
+          destroyBrowserNode(connectedBrowserId);
+          if (browserEntry) {
+            const browserParent = browserEntry.gfx.parent;
+            if (browserParent) browserParent.removeChild(browserEntry.gfx);
+          }
+        }
         await destroyTerminalNode(active);
       } else if (activeEntry.type === 'project') {
         await destroyProjectNode(active);
