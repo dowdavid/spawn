@@ -59,13 +59,22 @@ pub fn spawn_pty(
     std::thread::spawn(move || {
         let mut buf_reader = std::io::BufReader::new(reader);
         let mut buf = [0u8; 4096];
+        let mut last_detected_url: Option<String> = None;
         loop {
             use std::io::Read;
             match buf_reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                    let _ = app.emit(&format!("pty-output-{}", event_id), data);
+                    let _ = app.emit(&format!("pty-output-{}", event_id), &data);
+
+                    if let Some(url) = detect_dev_server_url(&data) {
+                        let is_new = last_detected_url.as_ref() != Some(&url);
+                        if is_new {
+                            last_detected_url = Some(url.clone());
+                            let _ = app.emit(&format!("dev-server-detected-{}", event_id), &url);
+                        }
+                    }
                 }
                 Err(_) => break,
             }
@@ -134,4 +143,32 @@ pub fn kill_pty(
         let _ = session.child.kill();
     }
     Ok(())
+}
+
+fn detect_dev_server_url(data: &str) -> Option<String> {
+    let prefixes = [
+        "http://localhost:",
+        "https://localhost:",
+        "http://127.0.0.1:",
+        "https://127.0.0.1:",
+        "http://0.0.0.0:",
+        "https://0.0.0.0:",
+    ];
+
+    for prefix in &prefixes {
+        if let Some(start) = data.find(prefix) {
+            let rest = &data[start..];
+            let url_end = rest
+                .find(|c: char| {
+                    c.is_whitespace() || c == '"' || c == '\'' || c == '>' || c == ')' || c == ']'
+                })
+                .unwrap_or(rest.len());
+            let mut url = rest[..url_end].to_string();
+            if url.contains("0.0.0.0") {
+                url = url.replace("0.0.0.0", "localhost");
+            }
+            return Some(url);
+        }
+    }
+    None
 }
