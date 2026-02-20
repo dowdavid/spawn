@@ -1,28 +1,11 @@
 // src/nodule.ts — connection nodules for disconnected nodes
-import { getAllNodes, getNode, getConnectionsForNode, getOverlayContainer, addConnection, type NodeType } from './state';
+import { getAllNodes, getNode, getConnectionsForNode, getOverlayContainer, addConnection, canConnect, hasAvailableSlot } from './state';
 import { createConnectionPath } from './connection';
 import { getProjectPath } from './project';
 import { setTerminalProjectLabel } from './terminal';
+import { accent, noduleSize, noduleGlow, noduleGlowPulse, highlightGlow } from './theme';
 
 const nodules = new Map<string, HTMLDivElement>();
-
-// Accent color per node type (matches focused border colors)
-const NODULE_COLORS: Record<NodeType, string> = {
-  terminal: '#e94560',
-  project: '#a78bfa',
-  viewer: '#34d399',
-  browser: '#f59e0b',
-};
-
-// Valid connection pairs: source type → allowed target types
-const VALID_TARGETS: Record<NodeType, NodeType[]> = {
-  terminal: ['project', 'browser'],
-  project: ['terminal'],
-  viewer: ['project'],
-  browser: ['terminal'],
-};
-
-const NODULE_SIZE = 14;
 
 // Drag state
 let dragging = false;
@@ -36,19 +19,19 @@ export function attachNodule(nodeId: string) {
   const entry = getNode(nodeId);
   if (!entry) return;
 
-  const color = NODULE_COLORS[entry.type];
+  const color = accent[entry.type];
 
   const el = document.createElement('div');
   el.style.cssText = `
     position: fixed;
-    width: ${NODULE_SIZE}px;
-    height: ${NODULE_SIZE}px;
+    width: ${noduleSize}px;
+    height: ${noduleSize}px;
     border-radius: 50%;
     background: ${color};
     cursor: crosshair;
     z-index: 0;
     pointer-events: auto;
-    box-shadow: 0 0 6px ${color}88;
+    box-shadow: ${noduleGlow(color)};
     animation: nodule-pulse-${entry.type} 2s ease-in-out infinite;
   `;
 
@@ -59,8 +42,8 @@ export function attachNodule(nodeId: string) {
     style.id = styleId;
     style.textContent = `
       @keyframes nodule-pulse-${entry.type} {
-        0%, 100% { box-shadow: 0 0 6px ${color}88; }
-        50% { box-shadow: 0 0 12px ${color}cc; }
+        0%, 100% { box-shadow: ${noduleGlow(color)}; }
+        50% { box-shadow: ${noduleGlowPulse(color)}; }
       }
     `;
     document.head.appendChild(style);
@@ -84,7 +67,7 @@ function startDrag(sourceId: string) {
   dragging = true;
   dragSourceId = sourceId;
 
-  const color = NODULE_COLORS[sourceEntry.type];
+  const color = accent[sourceEntry.type];
   tempPath = createConnectionPath();
   tempPath.setAttribute('stroke', color);
   tempPath.setAttribute('stroke-dasharray', '6 4');
@@ -144,14 +127,9 @@ function startDrag(sourceId: string) {
 }
 
 function hitTestNode(x: number, y: number, sourceId: string): string | null {
-  const sourceEntry = getNode(sourceId);
-  if (!sourceEntry) return null;
-
-  const allowed = VALID_TARGETS[sourceEntry.type];
-
   for (const entry of getAllNodes()) {
     if (entry.id === sourceId) continue;
-    if (!allowed.includes(entry.type)) continue;
+    if (!canConnect(sourceId, entry.id)) continue;
     const rect = entry.overlay.getBoundingClientRect();
     if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
       return entry.id;
@@ -172,8 +150,8 @@ function updateHighlight(x: number, y: number, sourceId: string) {
     const sourceEntry = getNode(sourceId);
     const entry = getNode(targetId);
     if (entry && sourceEntry) {
-      const color = NODULE_COLORS[sourceEntry.type];
-      entry.overlay.style.boxShadow = `0 0 15px ${color}88`;
+      const color = accent[sourceEntry.type];
+      entry.overlay.style.boxShadow = highlightGlow(color);
       highlightedOverlay = entry.overlay;
     }
   }
@@ -187,7 +165,8 @@ function clearHighlight() {
 }
 
 async function connectNodes(sourceId: string, targetId: string) {
-  addConnection(sourceId, targetId);
+  const conn = addConnection(sourceId, targetId);
+  if (!conn) return;
 
   const source = getNode(sourceId);
   const target = getNode(targetId);
@@ -259,8 +238,8 @@ async function wireBrowserTerminal(browserId: string, terminalId: string) {
 export function syncNoduleVisibility() {
   for (const [nodeId, el] of nodules) {
     const entry = getNode(nodeId);
-    const conns = getConnectionsForNode(nodeId);
 
+    const conns = getConnectionsForNode(nodeId);
     if (!entry || conns.length > 0) {
       el.style.display = 'none';
       continue;
@@ -271,7 +250,7 @@ export function syncNoduleVisibility() {
     // Position at the right edge of the overlay, vertically centered, protruding outward
     const rect = entry.overlay.getBoundingClientRect();
     el.style.left = `${rect.right + 2}px`;
-    el.style.top = `${rect.top + rect.height / 2 - NODULE_SIZE / 2}px`;
+    el.style.top = `${rect.top + rect.height / 2 - noduleSize / 2}px`;
 
     // Match the node's z-index so the nodule doesn't float above other nodes
     el.style.zIndex = entry.overlay.style.zIndex || '0';

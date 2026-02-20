@@ -1,3 +1,9 @@
+:root {
+  --canvas-bg: #1a1a2e;
+  --node-bg: #16213e;
+  --scrollbar-thumb: #2a3a4a;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -8,7 +14,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #1a1a2e;
+  background: var(--canvas-bg);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -20,7 +26,7 @@ canvas {
 /* Ensure terminal overlays are fully opaque and stack correctly */
 .terminal-overlay {
   isolation: isolate;
-  background: #16213e;
+  background: var(--node-bg);
 }
 
 .terminal-overlay .xterm {
@@ -28,13 +34,13 @@ canvas {
 }
 
 .terminal-overlay .xterm-viewport {
-  background-color: #16213e !important;
+  background-color: var(--node-bg) !important;
 }
 
 /* Project node overlays */
 .project-overlay {
   isolation: isolate;
-  background: #16213e;
+  background: var(--node-bg);
 }
 
 .project-overlay::-webkit-scrollbar {
@@ -46,14 +52,14 @@ canvas {
 }
 
 .project-overlay::-webkit-scrollbar-thumb {
-  background: #2a3a4a;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 /* Viewer node overlays */
 .viewer-overlay {
   isolation: isolate;
-  background: #16213e;
+  background: var(--node-bg);
 }
 
 .viewer-overlay pre {
@@ -70,6 +76,6 @@ canvas {
 }
 
 .viewer-overlay::-webkit-scrollbar-thumb {
-  background: #2a3a4a;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }

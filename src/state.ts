@@ -10,7 +10,6 @@ export interface NodeEntry {
   overlay: HTMLDivElement;
   width: number;
   height: number;
-  connectedTo?: string;
 }
 
 export interface Connection {
@@ -24,6 +23,7 @@ const nodes = new Map<string, NodeEntry>();
 const connections = new Map<string, Connection>();
 let activeNodeId: string | null = null;
 let lastActiveTerminalId: string | null = null;
+let lastActiveProjectId: string | null = null;
 let overlayContainer: HTMLDivElement;
 
 export function initOverlayContainer(): HTMLDivElement {
@@ -65,7 +65,8 @@ export function getNodesByType(type: NodeType): NodeEntry[] {
   return getAllNodes().filter((n) => n.type === type);
 }
 
-export function addConnection(sourceId: string, targetId: string): Connection {
+export function addConnection(sourceId: string, targetId: string): Connection | null {
+  if (!canConnect(sourceId, targetId)) return null;
   const id = crypto.randomUUID();
   return addConnectionWithId(id, sourceId, targetId);
 }
@@ -73,8 +74,6 @@ export function addConnection(sourceId: string, targetId: string): Connection {
 export function addConnectionWithId(id: string, sourceId: string, targetId: string): Connection {
   const conn: Connection = { id, sourceId, targetId, element: null };
   connections.set(id, conn);
-  const source = nodes.get(sourceId);
-  if (source) source.connectedTo = targetId;
   return conn;
 }
 
@@ -82,8 +81,6 @@ export function removeConnection(id: string) {
   const conn = connections.get(id);
   if (!conn) return;
   if (conn.element) conn.element.remove();
-  const source = nodes.get(conn.sourceId);
-  if (source) source.connectedTo = undefined;
   connections.delete(id);
 }
 
@@ -102,6 +99,7 @@ export function setActiveNodeId(id: string | null) {
   if (id) {
     const entry = nodes.get(id);
     if (entry?.type === 'terminal') lastActiveTerminalId = id;
+    if (entry?.type === 'project') lastActiveProjectId = id;
   }
 }
 
@@ -110,9 +108,89 @@ export function getActiveNodeId(): string | null {
 }
 
 export function getLastActiveTerminalId(): string | null {
-  // Return only if the terminal still exists
   if (lastActiveTerminalId && nodes.has(lastActiveTerminalId)) {
     return lastActiveTerminalId;
   }
   return null;
+}
+
+export function getLastActiveProjectId(): string | null {
+  if (lastActiveProjectId && nodes.has(lastActiveProjectId)) {
+    return lastActiveProjectId;
+  }
+  return null;
+}
+
+// --- Connection validation ---
+
+const VALID_PAIRS: Record<NodeType, NodeType[]> = {
+  terminal: ['project', 'browser'],
+  project:  ['terminal', 'viewer'],
+  viewer:   ['project'],
+  browser:  ['terminal'],
+};
+
+const MAX_CONNECTIONS: Partial<Record<NodeType, Partial<Record<NodeType, number>>>> = {
+  terminal: { project: 1, browser: 1 },
+  browser:  { terminal: 1 },
+  viewer:   { project: 1 },
+};
+
+function countConnectionsByType(nodeId: string, peerType: NodeType): number {
+  let count = 0;
+  for (const conn of connections.values()) {
+    if (conn.sourceId !== nodeId && conn.targetId !== nodeId) continue;
+    const peerId = conn.sourceId === nodeId ? conn.targetId : conn.sourceId;
+    const peer = nodes.get(peerId);
+    if (peer?.type === peerType) count++;
+  }
+  return count;
+}
+
+export function canConnect(sourceId: string, targetId: string): boolean {
+  const source = nodes.get(sourceId);
+  const target = nodes.get(targetId);
+  if (!source || !target) return false;
+
+  // Valid type pair (check both directions)
+  if (!VALID_PAIRS[source.type].includes(target.type)) return false;
+
+  // No duplicate connections
+  for (const conn of connections.values()) {
+    if (
+      (conn.sourceId === sourceId && conn.targetId === targetId) ||
+      (conn.sourceId === targetId && conn.targetId === sourceId)
+    ) return false;
+  }
+
+  // Slot limits
+  const sourceLimit = MAX_CONNECTIONS[source.type]?.[target.type];
+  if (sourceLimit !== undefined && countConnectionsByType(sourceId, target.type) >= sourceLimit) return false;
+
+  const targetLimit = MAX_CONNECTIONS[target.type]?.[source.type];
+  if (targetLimit !== undefined && countConnectionsByType(targetId, source.type) >= targetLimit) return false;
+
+  return true;
+}
+
+export function hasAvailableSlot(nodeId: string): boolean {
+  const entry = nodes.get(nodeId);
+  if (!entry) return false;
+
+  const validPeers = VALID_PAIRS[entry.type];
+  for (const peerType of validPeers) {
+    const limit = MAX_CONNECTIONS[entry.type]?.[peerType];
+    // No limit (e.g. project→terminal) means always open
+    if (limit === undefined) return true;
+    if (countConnectionsByType(nodeId, peerType) < limit) return true;
+  }
+  return false;
+}
+
+export function terminalHasProject(terminalId: string): boolean {
+  return countConnectionsByType(terminalId, 'project') > 0;
+}
+
+export function terminalHasBrowser(terminalId: string): boolean {
+  return countConnectionsByType(terminalId, 'browser') > 0;
 }

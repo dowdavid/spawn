@@ -12,20 +12,20 @@ import {
 } from './state';
 import { blurAllTerminals } from './terminal';
 import { resetNodeSize, detachResizeFrame } from './resize';
+import {
+  borderWidth, cornerRadius, borderDefault, nodeBg, titleBarBg,
+  accent, textPrimary, textMuted, textError, textTertiary,
+  hoverBg, folderIcon, chevronIcon,
+  fontMono, fontSizeBase,
+  titleBarPadding, treePaddingY, treeRowPaddingX, treeIndent, treeBaseIndent,
+  iconSize, closeBtnPadding, smallRadius,
+} from './theme';
 
 interface FileEntry {
   name: string;
   path: string;
   is_directory: boolean;
 }
-
-const BORDER_WIDTH = 2;
-const CORNER_RADIUS = 8;
-
-const BORDER_DEFAULT = '#0f3460';
-const BORDER_FOCUSED = '#a78bfa';
-const FILL_COLOR = '#16213e';
-const TITLE_BAR_COLOR = '#0f2040';
 
 const expandedFolders = new Map<string, Set<string>>();
 
@@ -53,9 +53,9 @@ export async function createProjectNode(
     position:absolute;
     pointer-events:auto;
     overflow:hidden;
-    background:${FILL_COLOR};
-    border:${BORDER_WIDTH}px solid ${BORDER_DEFAULT};
-    border-radius:${CORNER_RADIUS}px;
+    background:${nodeBg};
+    border:${borderWidth}px solid ${borderDefault};
+    border-radius:${cornerRadius}px;
     box-sizing:border-box;
   `;
   overlayContainer.appendChild(overlay);
@@ -65,45 +65,45 @@ export async function createProjectNode(
   titleBar.style.cssText = `
     width:100%;
     height:${TITLE_BAR_HEIGHT}px;
-    background:${TITLE_BAR_COLOR};
+    background:${titleBarBg};
     cursor:grab;
-    border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
+    border-radius:${cornerRadius - borderWidth}px ${cornerRadius - borderWidth}px 0 0;
     display:flex;
     align-items:center;
-    padding:0 10px;
+    padding:${titleBarPadding};
   `;
 
   // Drag grip icon (left)
   const gripIcon = document.createElement('div');
   gripIcon.style.cssText = 'display:flex;align-items:center;';
-  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
+  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
 
   // Project type icon (Lucide FolderOpen)
   const typeIcon = document.createElement('div');
   typeIcon.className = 'node-type-icon';
   typeIcon.style.cssText = 'display:flex;align-items:center;padding-left:2px;';
-  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
+  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`;
   titleBar.appendChild(typeIcon);
 
   // Folder name label
   const folderName = dirPath.split('/').pop() || dirPath;
   const label = document.createElement('div');
   label.style.cssText =
-    'flex:1;color:#c0c8d0;font-family:Menlo,Monaco,"Courier New",monospace;font-size:14px;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    `flex:1;color:${textPrimary};font-family:${fontMono};font-size:${fontSizeBase}px;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
   label.textContent = folderName;
   titleBar.appendChild(label);
 
   // Close button (right)
   const closeBtn = document.createElement('div');
   closeBtn.style.cssText =
-    'display:flex;align-items:center;cursor:pointer;padding:2px;border-radius:4px;';
-  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+    `display:flex;align-items:center;cursor:pointer;padding:${closeBtnPadding}px;border-radius:${smallRadius}px;`;
+  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
   closeBtn.addEventListener('mouseenter', () => {
-    closeBtn.querySelector('svg')!.style.stroke = '#a78bfa';
+    closeBtn.querySelector('svg')!.style.stroke = accent.project;
   });
   closeBtn.addEventListener('mouseleave', () => {
-    closeBtn.querySelector('svg')!.style.stroke = '#4a5568';
+    closeBtn.querySelector('svg')!.style.stroke = textMuted;
   });
   closeBtn.addEventListener('mousedown', (e) => {
     e.stopPropagation();
@@ -122,7 +122,7 @@ export async function createProjectNode(
     height:calc(100% - ${TITLE_BAR_HEIGHT}px);
     overflow-y:auto;
     overflow-x:hidden;
-    padding:8px 0;
+    padding:${treePaddingY}px 0;
     box-sizing:border-box;
   `;
   overlay.appendChild(treeContainer);
@@ -231,7 +231,7 @@ async function renderTree(
   } catch {
     const errDiv = document.createElement('div');
     errDiv.style.cssText =
-      'padding:10px 14px;color:#e94560;font-family:Menlo,Monaco,"Courier New",monospace;font-size:14px;';
+      `padding:10px 14px;color:${textError};font-family:${fontMono};font-size:${fontSizeBase}px;`;
     errDiv.textContent = 'Failed to read directory';
     container.appendChild(errDiv);
     return;
@@ -242,17 +242,17 @@ async function renderTree(
   for (const entry of entries) {
     const row = document.createElement('div');
     row.style.cssText = `
-      padding:4px 10px 4px ${14 + depth * 20}px;
-      font-family:Menlo,Monaco,"Courier New",monospace;
-      font-size:14px;
-      color:#c0c8d0;
+      padding:4px ${treeRowPaddingX}px 4px ${treeBaseIndent + depth * treeIndent}px;
+      font-family:${fontMono};
+      font-size:${fontSizeBase}px;
+      color:${textPrimary};
       cursor:pointer;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     `;
     row.addEventListener('mouseenter', () => {
-      row.style.background = '#1a2a40';
+      row.style.background = hoverBg;
     });
     row.addEventListener('mouseleave', () => {
       row.style.background = 'transparent';
@@ -268,15 +268,15 @@ async function renderTree(
       const chevron = document.createElement('span');
       chevron.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
       chevron.innerHTML = isExpanded
-        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a7a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
-        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a7a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>';
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${chevronIcon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${chevronIcon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
       row.appendChild(chevron);
 
       const folderIcon = document.createElement('span');
       folderIcon.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
       folderIcon.innerHTML = isExpanded
-        ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7a8a9a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>'
-        : '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7a8a9a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>';
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${folderIcon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${folderIcon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`;
       row.appendChild(folderIcon);
 
       const nameSpan = document.createElement('span');
@@ -302,12 +302,12 @@ async function renderTree(
     } else {
       // Spacer to align with folder chevron
       const spacer = document.createElement('span');
-      spacer.style.cssText = 'width:16px;flex-shrink:0;';
+      spacer.style.cssText = `width:${iconSize}px;flex-shrink:0;`;
       row.appendChild(spacer);
 
       const fileIcon = document.createElement('span');
       fileIcon.style.cssText = 'display:flex;align-items:center;flex-shrink:0;';
-      fileIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6a7a8a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>';
+      fileIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${chevronIcon}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
       row.appendChild(fileIcon);
 
       const nameSpan = document.createElement('span');

@@ -1,5 +1,6 @@
 import type { Container } from 'pixi.js';
 import { getAllConnections, getAllNodes, getActiveNodeId, getNode, getOverlayContainer } from './state';
+import { connectionStroke, connectionOpacity } from './theme';
 
 // Two SVG layers: back (below all nodes) and front (above inactive, below active)
 let svgBack: SVGSVGElement;
@@ -22,9 +23,9 @@ export function initConnectionLayer(): void {
 export function createConnectionPath(): SVGPathElement {
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   path.setAttribute('fill', 'none');
-  path.setAttribute('stroke', '#4a9eff');
+  path.setAttribute('stroke', connectionStroke);
   path.setAttribute('stroke-width', '2');
-  path.setAttribute('stroke-opacity', '0.6');
+  path.setAttribute('stroke-opacity', String(connectionOpacity));
   // Start in back layer; syncConnections will promote if needed
   svgBack.appendChild(path);
   return path;

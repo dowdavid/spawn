@@ -5,6 +5,13 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { Container, Graphics } from 'pixi.js';
 import { NODE_WIDTH, NODE_HEIGHT, TITLE_BAR_HEIGHT } from './node';
 import {
+  borderWidth, cornerRadius, borderDefault, nodeBg, titleBarBg,
+  accent, textMuted, textTertiary, textBody, textError,
+  fontMono, fontSizeBase, fontSizeCode,
+  titleBarPadding, iconSize, closeBtnPadding, smallRadius,
+  terminalPadding, cursorColor, selectionBg,
+} from './theme';
+import {
   getOverlayContainer,
   registerNode,
   unregisterNode,
@@ -24,22 +31,6 @@ export interface TerminalNodeData {
   titleLabel: HTMLDivElement;
   detectedUrl?: string;
 }
-
-const BORDER_WIDTH = 2;
-const CORNER_RADIUS = 8;
-
-const BORDER_DEFAULT = '#0f3460';
-const BORDER_FOCUSED = '#e94560';
-const FILL_COLOR = '#16213e';
-const TITLE_BAR_COLOR = '#0f2040';
-
-// Focused border color per node type — used by syncOverlays to manage all borders centrally
-const FOCUSED_BORDER_COLORS: Record<string, string> = {
-  terminal: '#e94560',
-  project: '#a78bfa',
-  viewer: '#34d399',
-  browser: '#f59e0b',
-};
 
 const terminalData = new Map<string, TerminalNodeData>();
 
@@ -76,9 +67,9 @@ export async function createTerminalNode(
     position:absolute;
     pointer-events:auto;
     overflow:hidden;
-    background:${FILL_COLOR};
-    border:${BORDER_WIDTH}px solid ${BORDER_DEFAULT};
-    border-radius:${CORNER_RADIUS}px;
+    background:${nodeBg};
+    border:${borderWidth}px solid ${borderDefault};
+    border-radius:${cornerRadius}px;
     box-sizing:border-box;
   `;
   overlayContainer.appendChild(overlay);
@@ -88,29 +79,29 @@ export async function createTerminalNode(
   titleBar.style.cssText = `
     width:100%;
     height:${TITLE_BAR_HEIGHT}px;
-    background:${TITLE_BAR_COLOR};
+    background:${titleBarBg};
     cursor:grab;
-    border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
+    border-radius:${cornerRadius - borderWidth}px ${cornerRadius - borderWidth}px 0 0;
     display:flex;
     align-items:center;
-    padding:0 10px;
+    padding:${titleBarPadding};
   `;
   // Drag grip icon (left)
   const gripIcon = document.createElement('div');
   gripIcon.style.cssText = 'display:flex;align-items:center;';
-  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
+  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
 
   // Terminal type icon (Lucide Terminal)
   const typeIcon = document.createElement('div');
   typeIcon.className = 'node-type-icon';
   typeIcon.style.cssText = 'display:flex;align-items:center;padding-left:2px;';
-  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>`;
+  typeIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>`;
   titleBar.appendChild(typeIcon);
 
   // Title label (shows project name if connected)
   const titleLabel = document.createElement('div');
-  titleLabel.style.cssText = 'color:#6a7a8a;font-family:Menlo,Monaco,monospace;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;';
+  titleLabel.style.cssText = `color:${textTertiary};font-family:${fontMono};font-size:${fontSizeBase}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:6px;`;
   if (connectedProjectPath) {
     titleLabel.textContent = connectedProjectPath.split('/').pop() || connectedProjectPath;
   }
@@ -123,10 +114,10 @@ export async function createTerminalNode(
 
   // Close button (right)
   const closeBtn = document.createElement('div');
-  closeBtn.style.cssText = 'display:flex;align-items:center;cursor:pointer;padding:2px;border-radius:4px;';
-  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
-  closeBtn.addEventListener('mouseenter', () => { closeBtn.querySelector('svg')!.style.stroke = '#e94560'; });
-  closeBtn.addEventListener('mouseleave', () => { closeBtn.querySelector('svg')!.style.stroke = '#4a5568'; });
+  closeBtn.style.cssText = `display:flex;align-items:center;cursor:pointer;padding:${closeBtnPadding}px;border-radius:${smallRadius}px;`;
+  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+  closeBtn.addEventListener('mouseenter', () => { closeBtn.querySelector('svg')!.style.stroke = accent.terminal; });
+  closeBtn.addEventListener('mouseleave', () => { closeBtn.querySelector('svg')!.style.stroke = textMuted; });
   closeBtn.addEventListener('mousedown', (e) => {
     e.stopPropagation();
     destroyTerminalNode(id);
@@ -143,7 +134,7 @@ export async function createTerminalNode(
     width:100%;
     height:calc(100% - ${TITLE_BAR_HEIGHT}px);
     overflow:hidden;
-    padding:8px 0px 14px 14px;
+    padding:${terminalPadding};
     box-sizing:border-box;
   `;
   overlay.appendChild(termPadding);
@@ -159,13 +150,13 @@ export async function createTerminalNode(
 
   const terminal = new Terminal({
     theme: {
-      background: FILL_COLOR,
-      foreground: '#e0e0e0',
-      cursor: '#e94560',
-      selectionBackground: '#0f346080',
+      background: nodeBg,
+      foreground: textBody,
+      cursor: cursorColor,
+      selectionBackground: selectionBg,
     },
-    fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-    fontSize: 15,
+    fontFamily: fontMono,
+    fontSize: fontSizeCode,
     allowProposedApi: true,
     cursorBlink: true,
   });
@@ -275,11 +266,11 @@ export function setActiveNode(id: string | null) {
     if (!entry) continue;
     if (nodeId === id) {
       data.terminal.focus();
-      entry.overlay.style.borderColor = BORDER_FOCUSED;
+      entry.overlay.style.borderColor = accent.terminal;
       entry.overlay.style.zIndex = `${getAllNodes().length + 1}`;
     } else {
       data.terminal.blur();
-      entry.overlay.style.borderColor = BORDER_DEFAULT;
+      entry.overlay.style.borderColor = borderDefault;
     }
   }
 }
@@ -288,7 +279,7 @@ export function blurAllTerminals() {
   for (const [id, data] of terminalData) {
     data.terminal.blur();
     const entry = getNode(id);
-    if (entry) entry.overlay.style.borderColor = BORDER_DEFAULT;
+    if (entry) entry.overlay.style.borderColor = borderDefault;
   }
 }
 
@@ -322,15 +313,15 @@ export function syncOverlays(world: Container) {
     // Centralized border state — only the active node gets its focused color
     const isActive = entry.id === activeId;
     entry.overlay.style.borderColor = isActive
-      ? (FOCUSED_BORDER_COLORS[entry.type] || BORDER_DEFAULT)
-      : BORDER_DEFAULT;
+      ? (accent[entry.type] || borderDefault)
+      : borderDefault;
 
     // Type icon color — colored when active, grey when inactive
     const iconSvg = entry.overlay.querySelector('.node-type-icon svg') as SVGElement | null;
     if (iconSvg) {
       iconSvg.style.stroke = isActive
-        ? (FOCUSED_BORDER_COLORS[entry.type] || '#4a5568')
-        : '#4a5568';
+        ? (accent[entry.type] || textMuted)
+        : textMuted;
     }
   }
 }

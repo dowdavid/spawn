@@ -1,5 +1,4 @@
 import { Application, FederatedPointerEvent } from 'pixi.js';
-import type { Container } from 'pixi.js';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -14,8 +13,11 @@ import {
   getAllNodes,
   getNodesByType,
   getLastActiveTerminalId,
+  getLastActiveProjectId,
   addConnection,
   getConnectionsForNode,
+  terminalHasProject,
+  terminalHasBrowser,
   type NodeEntry,
 } from './state';
 import {
@@ -27,8 +29,9 @@ import {
   setTerminalProjectLabel,
   setTerminalDetectedUrl,
   getTerminalDetectedUrl,
+  getTerminalData,
 } from './terminal';
-import { createProjectNode, destroyProjectNode, getProjectPath } from './project';
+import { createProjectNode, destroyProjectNode, getProjectPath, setActiveProjectNode } from './project';
 import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
 import {
   createBrowserNode,
@@ -44,13 +47,14 @@ import { initConnectionLayer, syncConnections } from './connection';
 import { attachNodule, syncNoduleVisibility } from './nodule';
 import { attachResizeFrame, initResizeCursors } from './resize';
 import { gatherWorkspaceState, restoreWorkspaceState } from './persistence';
+import { canvasBg } from './theme';
 import '@xterm/xterm/css/xterm.css';
 
 async function init() {
   const app = new Application();
 
   await app.init({
-    background: '#1a1a2e',
+    background: canvasBg,
     resizeTo: window,
     antialias: true,
     preference: 'webgl',
@@ -77,14 +81,18 @@ async function init() {
       const existingBrowserId = getBrowserForTerminal(terminalId);
       if (existingBrowserId) {
         setBrowserUrl(existingBrowserId, url);
+      } else if (terminalHasBrowser(terminalId)) {
+        // Terminal already has a browser via connection graph — skip
       } else {
         // Push to any unconnected browser node
         const emptyBrowser = findUnconnectedBrowser();
         if (emptyBrowser) {
-          const bd = getBrowserData(emptyBrowser);
-          if (bd) bd.connectedTerminalId = terminalId;
-          addConnection(emptyBrowser, terminalId);
-          setBrowserUrl(emptyBrowser, url);
+          const conn = addConnection(emptyBrowser, terminalId);
+          if (conn) {
+            const bd = getBrowserData(emptyBrowser);
+            if (bd) bd.connectedTerminalId = terminalId;
+            setBrowserUrl(emptyBrowser, url);
+          }
         } else {
           // No browser at all — auto-spawn one next to the terminal
           const termNode = getNode(terminalId);
@@ -224,7 +232,7 @@ async function init() {
     // Cmd+T — new terminal connected to project
     if (e.metaKey && !e.shiftKey && e.code === 'KeyT') {
       e.preventDefault();
-      const projectNode = findTargetProject(world);
+      const projectNode = findTargetProject();
       const lastTermId = getLastActiveTerminalId();
       const lastTerm = lastTermId ? getNode(lastTermId) : null;
 
@@ -248,7 +256,7 @@ async function init() {
         await autoConnectBrowser(handle.id);
       } else {
         // No projects — position left of existing browser, or stack from last terminal, or viewport center
-        const emptyBrowserEntry = findEmptyBrowser() ? getNode(findEmptyBrowser()!) : null;
+        const emptyBrowserEntry = findUnconnectedBrowser() ? getNode(findUnconnectedBrowser()!) : null;
         let viewX: number, viewY: number;
         if (emptyBrowserEntry) {
           viewX = emptyBrowserEntry.gfx.x - NODE_WIDTH - 50;
@@ -270,9 +278,15 @@ async function init() {
       return;
     }
 
-    // Cmd+P — new project node
+    // Cmd+P — new project node (only one allowed)
     if (e.metaKey && !e.shiftKey && e.code === 'KeyP') {
       e.preventDefault();
+      const existingProjects = getNodesByType('project');
+      if (existingProjects.length > 0) {
+        setActiveProjectNode(existingProjects[0].id);
+        return;
+      }
+
       const lastTermId = getLastActiveTerminalId();
       const lastTerm = lastTermId ? getNode(lastTermId) : null;
 
@@ -289,10 +303,15 @@ async function init() {
         await createProjectNode(handle.id, handle.gfx, PROJECT_WIDTH, PROJECT_HEIGHT, selected);
         attachNodule(handle.id);
         attachResizeFrame(handle.id);
-        if (lastTerm) {
-          addConnection(lastTermId!, handle.id);
-          const projectName = selected.split('/').pop() || selected;
-          setTerminalProjectLabel(lastTermId!, projectName);
+        // Reconnect terminals that were previously connected to this project path
+        const projectName = selected.split('/').pop() || selected;
+        for (const term of getNodesByType('terminal')) {
+          if (terminalHasProject(term.id)) continue;
+          const td = getTerminalData(term.id);
+          if (td?.connectedProjectPath === selected) {
+            const conn = addConnection(term.id, handle.id);
+            if (conn) setTerminalProjectLabel(term.id, projectName);
+          }
         }
       }
       return;
@@ -312,9 +331,17 @@ async function init() {
       return;
     }
 
-    // Cmd+B — new browser node paired with a terminal (auto-starts dev server if needed)
+    // Cmd+B — new browser node paired with a terminal (only one allowed)
     if (e.metaKey && !e.shiftKey && e.code === 'KeyB') {
       e.preventDefault();
+
+      // If any browser exists, focus it
+      const existingBrowsers = getNodesByType('browser');
+      if (existingBrowsers.length > 0) {
+        setActiveBrowserNode(existingBrowsers[0].id);
+        focusUrlInput(existingBrowsers[0].id);
+        return;
+      }
 
       // Find a terminal that doesn't already have a browser
       const target = findTerminalWithoutBrowser();
@@ -460,9 +487,10 @@ async function autoConnectBrowser(termId: string): Promise<void> {
     browserNode.gfx.y = termNode.gfx.y;
   }
 
-  // Wire the connection
+  // Wire the connection — validate first
+  const conn = addConnection(emptyBrowserId, termId);
+  if (!conn) return;
   bd.connectedTerminalId = termId;
-  addConnection(emptyBrowserId, termId);
 
   // Try to auto-start dev server
   const devCmd = await detectDevCommand(termId);
@@ -505,7 +533,7 @@ function findTerminalWithoutBrowser(): { termId: string; node: NodeEntry } | nul
   return null;
 }
 
-function findTargetProject(world: Container): NodeEntry | null {
+function findTargetProject(): NodeEntry | null {
   const projects = getNodesByType('project');
   if (projects.length === 0) return null;
 
@@ -514,25 +542,18 @@ function findTargetProject(world: Container): NodeEntry | null {
   const activeEntry = activeId ? getNode(activeId) : null;
   if (activeEntry?.type === 'project') return activeEntry;
 
+  // Last-active project
+  const lastProjId = getLastActiveProjectId();
+  if (lastProjId) {
+    const lastProj = getNode(lastProjId);
+    if (lastProj) return lastProj;
+  }
+
   // If exactly one project, use it
   if (projects.length === 1) return projects[0];
 
-  // Find nearest to viewport center
-  const vcx = (-world.x + window.innerWidth / 2) / world.scale.x;
-  const vcy = (-world.y + window.innerHeight / 2) / world.scale.y;
-
-  let nearest = projects[0];
-  let nearestDist = Infinity;
-  for (const p of projects) {
-    const dx = p.gfx.x + p.width / 2 - vcx;
-    const dy = p.gfx.y + p.height / 2 - vcy;
-    const dist = dx * dx + dy * dy;
-    if (dist < nearestDist) {
-      nearestDist = dist;
-      nearest = p;
-    }
-  }
-  return nearest;
+  // Multiple projects, none active — don't guess
+  return null;
 }
 
 init();

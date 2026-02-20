@@ -11,6 +11,12 @@ import {
 } from './state';
 import { blurAllTerminals } from './terminal';
 import { resetNodeSize, detachResizeFrame } from './resize';
+import {
+  borderWidth, cornerRadius, borderDefault, nodeBg, titleBarBg,
+  accent, textSecondary, textMuted, textBody, textError,
+  fontMono, fontSizeBase, fontSizeCode,
+  titleBarPadding, contentPadding, iconSize, closeBtnPadding, smallRadius,
+} from './theme';
 
 export interface ViewerData {
   filePath: string;
@@ -19,12 +25,6 @@ export interface ViewerData {
 
 const viewerData = new Map<string, ViewerData>();
 
-const BORDER_WIDTH = 2;
-const CORNER_RADIUS = 8;
-const BORDER_DEFAULT = '#0f3460';
-const BORDER_FOCUSED = '#34d399';
-const FILL_COLOR = '#16213e';
-const TITLE_BAR_COLOR = '#0f2040';
 
 export async function createViewerNode(
   id: string,
@@ -40,9 +40,9 @@ export async function createViewerNode(
     position:absolute;
     pointer-events:auto;
     overflow:hidden;
-    background:${FILL_COLOR};
-    border:${BORDER_WIDTH}px solid ${BORDER_DEFAULT};
-    border-radius:${CORNER_RADIUS}px;
+    background:${nodeBg};
+    border:${borderWidth}px solid ${borderDefault};
+    border-radius:${cornerRadius}px;
     box-sizing:border-box;
   `;
   overlay.style.width = `${nodeWidth}px`;
@@ -54,40 +54,40 @@ export async function createViewerNode(
   titleBar.style.cssText = `
     width:100%;
     height:${TITLE_BAR_HEIGHT}px;
-    background:${TITLE_BAR_COLOR};
+    background:${titleBarBg};
     cursor:grab;
-    border-radius:${CORNER_RADIUS - BORDER_WIDTH}px ${CORNER_RADIUS - BORDER_WIDTH}px 0 0;
+    border-radius:${cornerRadius - borderWidth}px ${cornerRadius - borderWidth}px 0 0;
     display:flex;
     align-items:center;
-    padding:0 10px;
+    padding:${titleBarPadding};
     gap:8px;
   `;
 
   // Drag grip
   const gripIcon = document.createElement('div');
   gripIcon.style.cssText = 'display:flex;align-items:center;';
-  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
+  gripIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
   titleBar.appendChild(gripIcon);
 
   // Document icon (Lucide FileText)
   const docIcon = document.createElement('div');
   docIcon.className = 'node-type-icon';
   docIcon.style.cssText = 'display:flex;align-items:center;';
-  docIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 13h-2"/><path d="M10 17H8"/><path d="M16 17h-2"/></svg>`;
+  docIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 13h-2"/><path d="M10 17H8"/><path d="M16 17h-2"/></svg>`;
   titleBar.appendChild(docIcon);
 
   // File name label
   const titleLabel = document.createElement('div');
-  titleLabel.style.cssText = 'flex:1;color:#8899aa;font-family:Menlo,Monaco,monospace;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  titleLabel.style.cssText = `flex:1;color:${textSecondary};font-family:${fontMono};font-size:${fontSizeBase}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
   titleLabel.textContent = fileName;
   titleBar.appendChild(titleLabel);
 
   // Close button
   const closeBtn = document.createElement('div');
-  closeBtn.style.cssText = 'display:flex;align-items:center;cursor:pointer;padding:2px;border-radius:4px;';
-  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4a5568" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
-  closeBtn.addEventListener('mouseenter', () => { closeBtn.querySelector('svg')!.style.stroke = '#34d399'; });
-  closeBtn.addEventListener('mouseleave', () => { closeBtn.querySelector('svg')!.style.stroke = '#4a5568'; });
+  closeBtn.style.cssText = `display:flex;align-items:center;cursor:pointer;padding:${closeBtnPadding}px;border-radius:${smallRadius}px;`;
+  closeBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none" stroke="${textMuted}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+  closeBtn.addEventListener('mouseenter', () => { closeBtn.querySelector('svg')!.style.stroke = accent.viewer; });
+  closeBtn.addEventListener('mouseleave', () => { closeBtn.querySelector('svg')!.style.stroke = textMuted; });
   closeBtn.addEventListener('mousedown', (e) => {
     e.stopPropagation();
     destroyViewerNode(id);
@@ -103,7 +103,7 @@ export async function createViewerNode(
     width:100%;
     height:calc(100% - ${TITLE_BAR_HEIGHT}px);
     overflow:auto;
-    padding:16px;
+    padding:${contentPadding}px;
     box-sizing:border-box;
   `;
   overlay.appendChild(codeContainer);
@@ -114,9 +114,9 @@ export async function createViewerNode(
     const pre = document.createElement('pre');
     pre.style.cssText = `
       margin:0;
-      font-family:Menlo,Monaco,"Courier New",monospace;
-      font-size:15px;
-      color:#e0e0e0;
+      font-family:${fontMono};
+      font-size:${fontSizeCode}px;
+      color:${textBody};
       line-height:1.5;
       white-space:pre;
       tab-size:4;
@@ -124,7 +124,7 @@ export async function createViewerNode(
     pre.textContent = contents;
     codeContainer.appendChild(pre);
   } catch {
-    codeContainer.style.cssText += 'color:#e94560;font-size:14px;font-family:Menlo,monospace;';
+    codeContainer.style.cssText += `color:${textError};font-size:${fontSizeBase}px;font-family:${fontMono};`;
     codeContainer.textContent = 'Failed to read file';
   }
 
