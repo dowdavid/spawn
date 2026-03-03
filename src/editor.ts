@@ -52,9 +52,13 @@ function getLanguageExtension(fileName: string) {
   }
 }
 
-async function saveFile(id: string): Promise<boolean> {
+async function saveFile(id: string, flash = false): Promise<boolean> {
   const data = editorData.get(id);
   if (!data) return false;
+  if (!data.dirty) {
+    if (flash) flashSaveBorder(id);
+    return true;
+  }
   const contents = data.editorView.state.doc.toString();
   try {
     recentWrites.set(data.filePath, Date.now());
@@ -207,7 +211,7 @@ export async function createEditorNode(
           ...(Array.isArray(langExt) ? langExt : [langExt]),
           keymap.of([{
             key: 'Mod-s',
-            run: () => { saveFile(id); return true; },
+            run: () => { saveFile(id, true); return true; },
           }]),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
