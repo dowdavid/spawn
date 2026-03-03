@@ -61,6 +61,7 @@ async function saveFile(id: string): Promise<boolean> {
     await invoke('write_file_contents', { path: data.filePath, contents });
     data.dirty = false;
     updateTitleDirtyState(id);
+    flashSaveBorder(id);
     return true;
   } catch (err) {
     console.error('Failed to save file:', err);
@@ -78,6 +79,18 @@ function updateTitleDirtyState(id: string) {
   if (label) {
     label.textContent = data.dirty ? `● ${data.fileName}` : data.fileName;
   }
+}
+
+function flashSaveBorder(id: string) {
+  const entry = getNode(id);
+  if (!entry) return;
+  const bright = '#93c5fd'; // lighter blue flash
+  entry.overlay.style.borderColor = bright;
+  entry.overlay.style.transition = 'border-color 0.3s ease';
+  setTimeout(() => {
+    entry.overlay.style.borderColor = borderDefault;
+    setTimeout(() => { entry.overlay.style.transition = ''; }, 300);
+  }, 300);
 }
 
 function showSaveError(id: string) {
