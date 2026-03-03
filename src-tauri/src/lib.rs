@@ -17,6 +17,7 @@ pub fn run() {
             pty::kill_pty,
             project::read_directory,
             project::read_file_contents,
+            project::write_file_contents,
             project::open_file_in_system,
             watcher::watch_directory,
             watcher::unwatch_directory,

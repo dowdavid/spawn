@@ -47,6 +47,11 @@ pub fn read_file_contents(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn write_file_contents(path: String, contents: String) -> Result<(), String> {
+    fs::write(&path, &contents).map_err(|e| format!("Failed to write file: {}", e))
+}
+
+#[tauri::command]
 pub fn open_file_in_system(path: String) -> Result<(), String> {
     open::that(&path).map_err(|e| format!("Failed to open file: {}", e))
 }
