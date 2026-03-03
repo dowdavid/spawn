@@ -33,6 +33,7 @@ import {
 } from './terminal';
 import { createProjectNode, destroyProjectNode, getProjectPath, setActiveProjectNode } from './project';
 import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
+import { createEditorNode, destroyEditorNode, setActiveEditorNode, isEditorNode } from './editor';
 import {
   createBrowserNode,
   destroyBrowserNode,
@@ -49,6 +50,17 @@ import { attachResizeFrame, initResizeCursors } from './resize';
 import { gatherWorkspaceState, restoreWorkspaceState } from './persistence';
 import { canvasBg } from './theme';
 import '@xterm/xterm/css/xterm.css';
+
+const TEXT_EXTENSIONS = new Set([
+  'ts', 'tsx', 'js', 'jsx', 'css', 'scss', 'html', 'json',
+  'md', 'txt', 'yaml', 'yml', 'toml', 'env', 'sh', 'rs',
+  'py', 'go', 'sql', 'svg', 'xml',
+]);
+
+function isTextFile(fileName: string): boolean {
+  const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
+  return TEXT_EXTENSIONS.has(ext);
+}
 
 async function init() {
   const app = new Application();
@@ -201,7 +213,11 @@ async function init() {
       } else if (activeEntry.type === 'project') {
         await destroyProjectNode(active);
       } else if (activeEntry.type === 'viewer') {
-        destroyViewerNode(active);
+        if (isEditorNode(active)) {
+          destroyEditorNode(active);
+        } else {
+          destroyViewerNode(active);
+        }
       } else if (activeEntry.type === 'browser') {
         destroyBrowserNode(active);
       }
@@ -398,7 +414,7 @@ async function init() {
     }
   });
 
-  // Open file viewer on double-click from project tree
+  // Open file viewer/editor on double-click from project tree
   window.addEventListener('open-file-viewer', async (e) => {
     const { filePath, fileName, projectId } = (e as CustomEvent).detail;
     const projectNode = projectId ? getNode(projectId) : null;
@@ -414,11 +430,20 @@ async function init() {
     }
 
     const handle = createNode(world, viewX, viewY);
-    await createViewerNode(handle.id, handle.gfx, VIEWER_WIDTH, VIEWER_HEIGHT, filePath, fileName);
-    attachNodule(handle.id);
-    attachResizeFrame(handle.id);
-    blurAllTerminals();
-    setActiveViewerNode(handle.id);
+
+    if (isTextFile(fileName)) {
+      await createEditorNode(handle.id, handle.gfx, VIEWER_WIDTH, VIEWER_HEIGHT, filePath, fileName);
+      attachNodule(handle.id);
+      attachResizeFrame(handle.id);
+      blurAllTerminals();
+      setActiveEditorNode(handle.id);
+    } else {
+      await createViewerNode(handle.id, handle.gfx, VIEWER_WIDTH, VIEWER_HEIGHT, filePath, fileName);
+      attachNodule(handle.id);
+      attachResizeFrame(handle.id);
+      blurAllTerminals();
+      setActiveViewerNode(handle.id);
+    }
 
     if (projectNode) {
       addConnection(handle.id, projectNode.id);
