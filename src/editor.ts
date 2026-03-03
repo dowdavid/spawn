@@ -36,6 +36,11 @@ export interface EditorData {
 
 const editorData = new Map<string, EditorData>();
 const recentWrites = new Map<string, number>();
+const flashingNodes = new Set<string>();
+
+export function isFlashing(id: string): boolean {
+  return flashingNodes.has(id);
+}
 
 function getLanguageExtension(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -52,7 +57,7 @@ function getLanguageExtension(fileName: string) {
   }
 }
 
-async function saveFile(id: string, flash = false): Promise<boolean> {
+export async function saveFile(id: string, flash = false): Promise<boolean> {
   const data = editorData.get(id);
   if (!data) return false;
   if (!data.dirty) {
@@ -88,11 +93,13 @@ function updateTitleDirtyState(id: string) {
 function flashSaveBorder(id: string) {
   const entry = getNode(id);
   if (!entry) return;
-  const bright = '#93c5fd'; // lighter blue flash
+  const bright = '#93c5fd';
+  flashingNodes.add(id);
   entry.overlay.style.borderColor = bright;
   entry.overlay.style.transition = 'border-color 0.3s ease';
   setTimeout(() => {
-    entry.overlay.style.borderColor = borderDefault;
+    flashingNodes.delete(id);
+    entry.overlay.style.transition = 'border-color 0.3s ease';
     setTimeout(() => { entry.overlay.style.transition = ''; }, 300);
   }, 300);
 }

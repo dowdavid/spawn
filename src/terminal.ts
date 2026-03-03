@@ -11,7 +11,7 @@ import {
   titleBarPadding, iconSize, closeBtnPadding, smallRadius,
   terminalPadding, cursorColor, selectionBg,
 } from './theme';
-import { isEditorNode } from './editor';
+import { isEditorNode, isFlashing } from './editor';
 import {
   getOverlayContainer,
   registerNode,
@@ -314,9 +314,11 @@ export function syncOverlays(world: Container) {
     // Centralized border state — only the active node gets its focused color
     const isActive = entry.id === activeId;
     const nodeAccent = (entry.type === 'viewer' && isEditorNode(entry.id)) ? editorAccent : accent[entry.type];
-    entry.overlay.style.borderColor = isActive
-      ? (nodeAccent || borderDefault)
-      : borderDefault;
+    if (!isFlashing(entry.id)) {
+      entry.overlay.style.borderColor = isActive
+        ? (nodeAccent || borderDefault)
+        : borderDefault;
+    }
 
     // Type icon color — colored when active, grey when inactive
     const iconSvg = entry.overlay.querySelector('.node-type-icon svg') as SVGElement | null;

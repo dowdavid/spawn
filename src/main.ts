@@ -33,7 +33,7 @@ import {
 } from './terminal';
 import { createProjectNode, destroyProjectNode, getProjectPath, setActiveProjectNode } from './project';
 import { createViewerNode, destroyViewerNode, setActiveViewerNode } from './viewer';
-import { createEditorNode, destroyEditorNode, setActiveEditorNode, isEditorNode } from './editor';
+import { createEditorNode, destroyEditorNode, setActiveEditorNode, isEditorNode, saveFile } from './editor';
 import {
   createBrowserNode,
   destroyBrowserNode,
@@ -190,6 +190,15 @@ async function init() {
         isClosing = true;
         await saveWorkspace();
         getCurrentWindow().destroy();
+      }
+      return;
+    }
+
+    // Cmd+S — save active editor node
+    if (e.metaKey && !e.shiftKey && e.code === 'KeyS') {
+      e.preventDefault();
+      if (active && activeEntry?.type === 'viewer' && isEditorNode(active)) {
+        saveFile(active, true);
       }
       return;
     }
