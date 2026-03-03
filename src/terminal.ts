@@ -6,11 +6,12 @@ import type { Container, Graphics } from 'pixi.js';
 import { NODE_WIDTH, NODE_HEIGHT, TITLE_BAR_HEIGHT } from './node';
 import {
   borderWidth, cornerRadius, borderDefault, nodeBg, titleBarBg,
-  accent, textMuted, textTertiary, textBody, textError,
+  accent, editorAccent, textMuted, textTertiary, textBody, textError,
   fontMono, fontSizeBase, fontSizeCode,
   titleBarPadding, iconSize, closeBtnPadding, smallRadius,
   terminalPadding, cursorColor, selectionBg,
 } from './theme';
+import { isEditorNode } from './editor';
 import {
   getOverlayContainer,
   registerNode,
@@ -312,15 +313,16 @@ export function syncOverlays(world: Container) {
 
     // Centralized border state — only the active node gets its focused color
     const isActive = entry.id === activeId;
+    const nodeAccent = (entry.type === 'viewer' && isEditorNode(entry.id)) ? editorAccent : accent[entry.type];
     entry.overlay.style.borderColor = isActive
-      ? (accent[entry.type] || borderDefault)
+      ? (nodeAccent || borderDefault)
       : borderDefault;
 
     // Type icon color — colored when active, grey when inactive
     const iconSvg = entry.overlay.querySelector('.node-type-icon svg') as SVGElement | null;
     if (iconSvg) {
       iconSvg.style.stroke = isActive
-        ? (accent[entry.type] || textMuted)
+        ? (nodeAccent || textMuted)
         : textMuted;
     }
   }
