@@ -1142,4 +1142,7 @@ git commit -m "feat: clean up browser on terminal close"
 | 7 | Canvas persistence (save/load workspaces as files) | Medium |
 | 8 | Pages (multiple pages within canvas) | Medium |
 | 9 | Extensions API (third-party nodes) | Low |
+
+
+
 | Future | Collaboration (shared canvas) | Low |
