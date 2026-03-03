@@ -9,6 +9,7 @@ import { createNodeWithId } from './node';
 import { createTerminalNode, getTerminalData, setActiveNode } from './terminal';
 import { createProjectNode, getProjectPath, getExpandedFolders } from './project';
 import { createViewerNode, getViewerData } from './viewer';
+import { createEditorNode, getEditorData, isEditorNode } from './editor';
 import { createBrowserNode, getBrowserData } from './browser';
 import { setTargetScale } from './canvas';
 
@@ -27,6 +28,7 @@ interface SerializedProject {
 interface SerializedViewer {
   filePath: string;
   fileName: string;
+  isEditor?: boolean;
 }
 
 interface SerializedBrowser {
@@ -93,9 +95,14 @@ export function gatherWorkspaceState(world: Container): WorkspaceState {
         };
       }
     } else if (entry.type === 'viewer') {
-      const vd = getViewerData(entry.id);
-      if (vd) {
-        base.viewer = { filePath: vd.filePath, fileName: vd.fileName };
+      const ed = getEditorData(entry.id);
+      if (ed) {
+        base.viewer = { filePath: ed.filePath, fileName: ed.fileName, isEditor: true };
+      } else {
+        const vd = getViewerData(entry.id);
+        if (vd) {
+          base.viewer = { filePath: vd.filePath, fileName: vd.fileName };
+        }
       }
     } else if (entry.type === 'browser') {
       const bd = getBrowserData(entry.id);
@@ -173,18 +180,29 @@ export async function restoreWorkspaceState(
     );
   }
 
-  // Restore viewers
+  // Restore viewers and editors
   for (const n of viewerNodes) {
     if (!n.viewer) continue;
     const handle = createNodeWithId(world, n.x, n.y, n.id);
-    await createViewerNode(
-      handle.id,
-      handle.gfx,
-      n.width,
-      n.height,
-      n.viewer.filePath,
-      n.viewer.fileName,
-    );
+    if (n.viewer.isEditor) {
+      await createEditorNode(
+        handle.id,
+        handle.gfx,
+        n.width,
+        n.height,
+        n.viewer.filePath,
+        n.viewer.fileName,
+      );
+    } else {
+      await createViewerNode(
+        handle.id,
+        handle.gfx,
+        n.width,
+        n.height,
+        n.viewer.filePath,
+        n.viewer.fileName,
+      );
+    }
   }
 
   // Restore browsers
