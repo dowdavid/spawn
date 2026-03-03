@@ -23,6 +23,9 @@ export const accent: Record<NodeType, string> = {
   browser: '#f59e0b',
 };
 
+// Editor mode accent (used when viewer node is editable)
+export const editorAccent = '#60a5fa';
+
 // Text hierarchy
 export const textPrimary = '#c0c8d0';
 export const textSecondary = '#8899aa';
