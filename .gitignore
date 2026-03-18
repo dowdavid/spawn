@@ -3,3 +3,22 @@ node_modules/
 
 # Build output
 dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Debug
+npm-debug.log*
+
+# Context (conductor workspaces)
+.context/
