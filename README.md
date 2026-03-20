@@ -4,40 +4,46 @@ A native macOS app that replaces traditional window management with an infinite 
 
 Open a project, spawn a terminal, start a dev server, and a browser preview auto-appears, all on one canvas.
 
-## Stack
+## Download
 
-- **Frontend:** TypeScript, PixiJS 8 (WebGL canvas), xterm.js (terminals), CodeMirror 6 (editors)
-- **Backend:** Rust, Tauri 2.0 (native shell, PTY, file I/O, webviews)
-- **Build:** Vite 7, TypeScript 5
+[Download Spawn for macOS (Apple Silicon)](https://github.com/dowdavid/spawn/releases/download/v0.1.0/Spawn_0.1.0_aarch64.dmg)
 
-## Prerequisites
+## Installation
 
-- macOS (the only supported platform right now)
-- Node.js 20+
-- Rust 1.77+
-- [Tauri CLI prerequisites](https://v2.tauri.app/start/prerequisites/)
+1. Open the downloaded `.dmg` file
+2. Drag **Spawn** into your Applications folder
+3. On first launch, macOS will block the app because it isn't signed with an Apple Developer certificate. To open it:
+   - Right-click (or Control-click) Spawn in Applications
+   - Click **Open**
+   - Click **Open** again in the dialog that appears
+   - You only need to do this once. After that it opens normally.
 
-## Setup
+Alternatively: System Settings > Privacy & Security > scroll down to "Spawn was blocked" > click **Open Anyway**.
 
-```bash
-npm install
-```
+## Getting started
 
-## Development
+1. Open Spawn
+2. Press `Cmd+P` to create a project node and pick a folder
+3. Press `Cmd+T` to spawn a terminal (auto-connects to the project)
+4. Run a dev server in the terminal. When it prints a `localhost:PORT` URL, a browser preview auto-appears and connects
 
-```bash
-npm run tauri:dev
-```
+## Keyboard shortcuts
 
-This starts Vite on port 5173 and launches the Tauri window with hot reload.
+| Shortcut | Action |
+|----------|--------|
+| `Cmd+P` | New project node |
+| `Cmd+T` | New terminal (connected to project) |
+| `Cmd+Shift+T` | New standalone terminal |
+| `Cmd+B` | New browser (paired with terminal) |
+| `Cmd+Shift+B` | New standalone browser |
+| `Cmd+W` | Close active node |
+| `Cmd+S` | Save active editor |
+| `Cmd+Q` | Save workspace and quit |
 
-## Production build
+## Canvas controls
 
-```bash
-npm run tauri:build
-```
-
-Output lands in `src-tauri/target/release/bundle/`.
+- **Pan:** Middle-click drag or Space + drag
+- **Zoom:** Scroll wheel / trackpad pinch (0.1x to 5.0x, cursor-anchored)
 
 ## Node types
 
@@ -49,25 +55,7 @@ Output lands in `src-tauri/target/release/bundle/`.
 | Viewer | Green `#34d399` | Read-only file preview |
 | Browser | Orange `#f59e0b` | URL bar + Tauri child webview for dev server previews |
 
-## Keyboard shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd+T` | New terminal (connected to project) |
-| `Cmd+Shift+T` | New disconnected terminal |
-| `Cmd+P` | New project node |
-| `Cmd+B` | New browser (paired with terminal) |
-| `Cmd+Shift+B` | New disconnected browser |
-| `Cmd+W` | Close active node |
-| `Cmd+S` | Save active editor |
-| `Cmd+Q` | Save workspace and quit |
-
-## Canvas controls
-
-- **Pan:** Middle-click drag or Space + drag
-- **Zoom:** Scroll wheel / trackpad pinch (0.1x to 5.0x, cursor-anchored)
-
-## How connections work
+## Connections
 
 Nodes connect via drag-to-connect handles (glowing circles on node edges). Valid connections:
 
@@ -79,7 +67,50 @@ project  <-> viewer     (1:many)
 
 When a terminal detects a running dev server (parses `localhost:PORT` from PTY output), a browser node auto-spawns and connects.
 
-## Project structure
+## Workspace persistence
+
+State auto-saves on quit and restores on launch. Saved to `~/.app_data/workspace.json`. Includes node positions, sizes, connections, terminal working directories, browser URLs, and open file paths.
+
+---
+
+## Development
+
+### Stack
+
+- **Frontend:** TypeScript, PixiJS 8 (WebGL canvas), xterm.js (terminals), CodeMirror 6 (editors)
+- **Backend:** Rust, Tauri 2.0 (native shell, PTY, file I/O, webviews)
+- **Build:** Vite 7, TypeScript 5
+
+### Prerequisites
+
+- macOS
+- Node.js 20+
+- Rust 1.77+
+- [Tauri CLI prerequisites](https://v2.tauri.app/start/prerequisites/)
+
+### Setup
+
+```bash
+npm install
+```
+
+### Run locally
+
+```bash
+npm run tauri:dev
+```
+
+Starts Vite on port 5173 and launches the Tauri window with hot reload.
+
+### Production build
+
+```bash
+npm run tauri:build
+```
+
+Output lands in `src-tauri/target/release/bundle/`.
+
+### Project structure
 
 ```
 src/                     Frontend (TypeScript)
@@ -110,7 +141,3 @@ src-tauri/src/           Backend (Rust)
 
 docs/plans/              Design docs and roadmap
 ```
-
-## Workspace persistence
-
-State auto-saves on quit and restores on launch. Saved to `~/.app_data/workspace.json`. Includes node positions, sizes, connections, terminal working directories, browser URLs, and open file paths.
